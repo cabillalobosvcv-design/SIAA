@@ -1,0 +1,6 @@
+{
+  "name": "SIAA — Sistema Integral de Asesorías Académicas",
+  "description": "Sistema institucional para la gestión, autorización, asignación, seguimiento y calendarización de asesorías académicas universitarias.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

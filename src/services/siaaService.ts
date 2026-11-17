@@ -1,0 +1,1207 @@
+import {
+  User,
+  Carrera,
+  Cuatrimestre,
+  Grupo,
+  Materia,
+  Aula,
+  DisponibilidadRecurrente,
+  DisponibilidadEspecifica,
+  Asesoria,
+  EstadoAsesoria,
+  Notification,
+  AuditLog,
+  FilterParams,
+  UserRole
+} from '../types/siaa';
+import {
+  INITIAL_USERS,
+  INITIAL_CARRERAS,
+  INITIAL_CUATRIMESTRES,
+  INITIAL_GRUPOS,
+  INITIAL_MATERIAS,
+  INITIAL_AULAS,
+  INITIAL_DISPONIBILIDADES_RECURRENTES,
+  INITIAL_DISPONIBILIDADES_ESPECIFICAS,
+  INITIAL_ASESORIAS,
+  INITIAL_NOTIFICACIONES,
+  INITIAL_AUDIT_LOGS
+} from './seedData';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+const STORAGE_KEYS = {
+  USERS: 'siaa_users',
+  CARRERAS: 'siaa_carreras',
+  CUATRIMESTRES: 'siaa_cuatrimestres',
+  GRUPOS: 'siaa_grupos',
+  MATERIAS: 'siaa_materias',
+  AULAS: 'siaa_aulas',
+  DISP_REC: 'siaa_disp_recurrentes',
+  DISP_ESP: 'siaa_disp_especificas',
+  ASESORIAS: 'siaa_asesorias',
+  NOTIFICATIONS: 'siaa_notifications',
+  AUDIT: 'siaa_audit_logs'
+};
+
+function getStored<T>(key: string, defaultVal: T): T {
+  try {
+    const item = localStorage.getItem(key);
+    if (!item) {
+      localStorage.setItem(key, JSON.stringify(defaultVal));
+      return defaultVal;
+    }
+    return JSON.parse(item) as T;
+  } catch (e) {
+    console.error('Error reading localStorage', e);
+    return defaultVal;
+  }
+}
+
+function setStored<T>(key: string, val: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch (e) {
+    console.error('Error writing localStorage', e);
+  }
+}
+
+export class SIAADataService {
+  // Read collections
+  static getUsers(): User[] {
+    return getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+  }
+
+  static getCarreras(): Carrera[] {
+    return getStored<Carrera[]>(STORAGE_KEYS.CARRERAS, INITIAL_CARRERAS);
+  }
+
+  static getCuatrimestres(): Cuatrimestre[] {
+    return getStored<Cuatrimestre[]>(STORAGE_KEYS.CUATRIMESTRES, INITIAL_CUATRIMESTRES);
+  }
+
+  static getGrupos(): Grupo[] {
+    return getStored<Grupo[]>(STORAGE_KEYS.GRUPOS, INITIAL_GRUPOS);
+  }
+
+  static getMaterias(): Materia[] {
+    return getStored<Materia[]>(STORAGE_KEYS.MATERIAS, INITIAL_MATERIAS);
+  }
+
+  static getAulas(): Aula[] {
+    return getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS);
+  }
+
+  static getDisponibilidadesRecurrentes(docenteId?: string): DisponibilidadRecurrente[] {
+    const all = getStored<DisponibilidadRecurrente[]>(STORAGE_KEYS.DISP_REC, INITIAL_DISPONIBILIDADES_RECURRENTES);
+    return docenteId ? all.filter(d => d.docenteId === docenteId) : all;
+  }
+
+  static getDisponibilidadesEspecificas(docenteId?: string): DisponibilidadEspecifica[] {
+    const all = getStored<DisponibilidadEspecifica[]>(STORAGE_KEYS.DISP_ESP, INITIAL_DISPONIBILIDADES_ESPECIFICAS);
+    return docenteId ? all.filter(d => d.docenteId === docenteId) : all;
+  }
+
+  static getAsesorias(): Asesoria[] {
+    return getStored<Asesoria[]>(STORAGE_KEYS.ASESORIAS, INITIAL_ASESORIAS);
+  }
+
+  static getAsesoriaById(id: string): Asesoria | undefined {
+    return this.getAsesorias().find(a => a.id === id);
+  }
+
+  static getNotifications(userId?: string): Notification[] {
+    const all = getStored<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICACIONES);
+    return userId ? all.filter(n => n.userId === userId) : all;
+  }
+
+  static getAuditLogs(): AuditLog[] {
+    return getStored<AuditLog[]>(STORAGE_KEYS.AUDIT, INITIAL_AUDIT_LOGS);
+  }
+
+  // Audit Log recording
+  static logAudit(params: {
+    usuarioId: string;
+    usuarioNombre: string;
+    rol: UserRole;
+    accion: string;
+    modulo: string;
+    documentoAfectado: string;
+    detalles?: string;
+    ip?: string;
+  }) {
+    const logs = this.getAuditLogs();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+    const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const fechaHora = `${fecha} ${hora}`;
+
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      usuarioId: params.usuarioId,
+      usuarioNombre: params.usuarioNombre,
+      rol: params.rol,
+      accion: params.accion,
+      modulo: params.modulo,
+      documentoAfectado: params.documentoAfectado,
+      fecha,
+      hora,
+      fechaHora,
+      detalles: params.detalles || '',
+      ip: params.ip || '192.168.1.10'
+    };
+
+    setStored(STORAGE_KEYS.AUDIT, [newLog, ...logs]);
+  }
+
+  // Notifications
+  static sendNotification(params: {
+    userId: string;
+    titulo: string;
+    mensaje: string;
+    tipo: Notification['tipo'];
+    referenciaId?: string;
+  }) {
+    const notifs = this.getNotifications();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const newNotif: Notification = {
+      id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      userId: params.userId,
+      titulo: params.titulo,
+      mensaje: params.mensaje,
+      tipo: params.tipo,
+      referenciaId: params.referenciaId,
+      leida: false,
+      fechaCreacion: fecha
+    };
+
+    setStored(STORAGE_KEYS.NOTIFICATIONS, [newNotif, ...notifs]);
+  }
+
+  static markNotificationAsRead(id: string) {
+    const notifs = this.getNotifications();
+    const updated = notifs.map(n => n.id === id ? { ...n, leida: true } : n);
+    setStored(STORAGE_KEYS.NOTIFICATIONS, updated);
+  }
+
+  static markAllNotificationsAsRead(userId: string) {
+    const notifs = this.getNotifications();
+    const updated = notifs.map(n => n.userId === userId ? { ...n, leida: true } : n);
+    setStored(STORAGE_KEYS.NOTIFICATIONS, updated);
+  }
+
+  // Folio generator
+  static generateNextFolio(): string {
+    const asesorias = this.getAsesorias();
+    const currentYear = new Date().getFullYear();
+    const yearPrefix = `SIAA-${currentYear}-`;
+    const folios = asesorias
+      .map(a => a.folio)
+      .filter(f => f.startsWith(yearPrefix))
+      .map(f => parseInt(f.replace(yearPrefix, ''), 10))
+      .filter(n => !isNaN(n));
+    
+    const maxNumber = folios.length > 0 ? Math.max(...folios) : 0;
+    const nextNumber = (maxNumber + 1).toString().padStart(6, '0');
+    return `${yearPrefix}${nextNumber}`;
+  }
+
+  // Conflict detection
+  static checkScheduleConflict(params: {
+    docenteId?: string;
+    alumnoId?: string;
+    aulaId?: string;
+    fecha: string;      // YYYY-MM-DD
+    horaInicio: string; // HH:mm
+    horaTermino: string;// HH:mm
+    excludeAsesoriaId?: string;
+  }): { hasConflict: boolean; reason?: string } {
+    const { docenteId, alumnoId, aulaId, fecha, horaInicio, horaTermino, excludeAsesoriaId } = params;
+    const asesorias = this.getAsesorias();
+
+    // Only active sessions that occupy time slots
+    const activeStates: EstadoAsesoria[] = ['asignada', 'confirmada', 'en_proceso'];
+
+    for (const a of asesorias) {
+      if (a.id === excludeAsesoriaId) continue;
+      if (!activeStates.includes(a.estado)) continue;
+      if (a.fechaProgramada !== fecha) continue;
+      if (!a.horaInicio || !a.horaTermino) continue;
+
+      // Check overlap: (StartA < EndB) and (EndA > StartB)
+      const overlaps = horaInicio < a.horaTermino && horaTermino > a.horaInicio;
+      if (!overlaps) continue;
+
+      // 1. Conflict for teacher
+      if (docenteId && a.docenteAsignadoId === docenteId) {
+        return {
+          hasConflict: true,
+          reason: `El docente asignado ya tiene una asesoría programada (${a.folio}) de ${a.horaInicio} a ${a.horaTermino} en esta fecha.`
+        };
+      }
+
+      // 2. Conflict for student
+      if (alumnoId && a.alumnoId === alumnoId) {
+        return {
+          hasConflict: true,
+          reason: `El alumno ya tiene otra asesoría agendada (${a.folio}) de ${a.horaInicio} a ${a.horaTermino} en esta fecha.`
+        };
+      }
+
+      // 3. Conflict for classroom
+      if (aulaId && a.aulaId === aulaId) {
+        return {
+          hasConflict: true,
+          reason: `El aula seleccionada (${a.aulaNombre || 'Aula'}) se encuentra ocupada de ${a.horaInicio} a ${a.horaTermino} por la asesoría ${a.folio}.`
+        };
+      }
+    }
+
+    return { hasConflict: false };
+  }
+
+  // Request creation
+  static createSolicitud(params: Omit<Asesoria, 'id' | 'folio' | 'estado'>): Asesoria {
+    const folio = this.generateNextFolio();
+    const id = `ase-${Date.now()}`;
+    const newAsesoria: Asesoria = {
+      ...params,
+      id,
+      folio,
+      estado: 'pendiente'
+    };
+
+    const list = this.getAsesorias();
+    setStored(STORAGE_KEYS.ASESORIAS, [newAsesoria, ...list]);
+
+    // Send notifications to administrators and directors
+    const users = this.getUsers();
+    const adminAndDirs = users.filter(u => u.rol === 'admin' || u.rol === 'director');
+    adminAndDirs.forEach(u => {
+      this.sendNotification({
+        userId: u.uid,
+        titulo: 'Nueva Solicitud de Asesoría',
+        mensaje: `El alumno ${params.alumnoNombre} ha solicitado asesoría en ${params.materiaNombre} (Folio: ${folio}).`,
+        tipo: 'solicitud',
+        referenciaId: id
+      });
+    });
+
+    this.logAudit({
+      usuarioId: params.solicitanteId,
+      usuarioNombre: params.solicitanteNombre,
+      rol: params.solicitanteRol,
+      accion: 'SOLICITUD_CREADA',
+      modulo: 'Solicitudes',
+      documentoAfectado: folio,
+      detalles: `Materia: ${params.materiaNombre}, Motivo: ${params.motivo.slice(0, 60)}`
+    });
+
+    return newAsesoria;
+  }
+
+  // Update asesoria
+  static updateAsesoria(asesoria: Asesoria, actionUser: User, actionName: string, details?: string): void {
+    const list = this.getAsesorias();
+    const updated = list.map(a => a.id === asesoria.id ? asesoria : a);
+    setStored(STORAGE_KEYS.ASESORIAS, updated);
+
+    this.logAudit({
+      usuarioId: actionUser.uid,
+      usuarioNombre: `${actionUser.nombre} ${actionUser.apellidoPaterno}`,
+      rol: actionUser.rol,
+      accion: actionName,
+      modulo: 'Asesorías',
+      documentoAfectado: asesoria.folio,
+      detalles: details || `Estado actualizado a ${asesoria.estado}`
+    });
+  }
+
+  static updateAsesoriaEstado(
+    asesoriaId: string,
+    nuevoEstado: EstadoAsesoria,
+    actor: User,
+    detalles?: string
+  ): void {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === asesoriaId);
+    if (!asesoria) return;
+    asesoria.estado = nuevoEstado;
+    this.updateAsesoria(asesoria, actor, `ESTADO_${nuevoEstado.toUpperCase()}`, detalles);
+  }
+
+  // Authorize request
+  static autorizarSolicitud(
+    asesoriaId: string,
+    autorizador: User,
+    observaciones?: string
+  ): { success: boolean; message?: string } {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === asesoriaId);
+    if (!asesoria) return { success: false, message: 'Asesoría no encontrada' };
+
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    asesoria.estado = 'aprobada';
+    asesoria.autorizadaPor = `${autorizador.nombre} ${autorizador.apellidoPaterno}`;
+    asesoria.fechaAutorizacion = fecha;
+    asesoria.observacionesAutorizacion = observaciones;
+
+    this.updateAsesoria(asesoria, autorizador, 'SOLICITUD_APROBADA', observaciones);
+
+    // Notify student
+    this.sendNotification({
+      userId: asesoria.alumnoId,
+      titulo: 'Solicitud Aprobada',
+      mensaje: `Tu solicitud de asesoría (${asesoria.folio}) para ${asesoria.materiaNombre} ha sido aprobada. En breve se te asignará docente y horario.`,
+      tipo: 'autorizacion',
+      referenciaId: asesoria.id
+    });
+
+    return { success: true };
+  }
+
+  // Reject request
+  static rechazarSolicitud(
+    asesoriaId: string,
+    autorizador: User,
+    motivoRechazo: string
+  ): { success: boolean; message?: string } {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === asesoriaId);
+    if (!asesoria) return { success: false, message: 'Asesoría no encontrada' };
+
+    asesoria.estado = 'rechazada';
+    asesoria.motivoRechazo = motivoRechazo;
+
+    this.updateAsesoria(asesoria, autorizador, 'SOLICITUD_RECHAZADA', `Motivo: ${motivoRechazo}`);
+
+    // Notify student
+    this.sendNotification({
+      userId: asesoria.alumnoId,
+      titulo: 'Solicitud No Aprobada',
+      mensaje: `Tu solicitud (${asesoria.folio}) no pudo ser aprobada. Motivo: ${motivoRechazo}`,
+      tipo: 'cancelacion',
+      referenciaId: asesoria.id
+    });
+
+    return { success: true };
+  }
+
+  // Assign teacher & schedule
+  static asignarAsesoria(params: {
+    asesoriaId: string;
+    docenteId: string;
+    fecha: string;
+    horaInicio: string;
+    horaTermino: string;
+    aulaId: string;
+    modalidad: 'presencial' | 'virtual' | 'hibrida';
+    observaciones?: string;
+    actor: User;
+  }): { success: boolean; message?: string } {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === params.asesoriaId);
+    if (!asesoria) return { success: false, message: 'Asesoría no encontrada' };
+
+    // Check conflict
+    const conflict = this.checkScheduleConflict({
+      docenteId: params.docenteId,
+      alumnoId: asesoria.alumnoId,
+      aulaId: params.aulaId,
+      fecha: params.fecha,
+      horaInicio: params.horaInicio,
+      horaTermino: params.horaTermino,
+      excludeAsesoriaId: asesoria.id
+    });
+
+    if (conflict.hasConflict) {
+      return { success: false, message: conflict.reason };
+    }
+
+    const docente = this.getUsers().find(u => u.uid === params.docenteId);
+    const aula = this.getAulas().find(a => a.id === params.aulaId);
+
+    asesoria.docenteAsignadoId = params.docenteId;
+    asesoria.docenteAsignadoNombre = docente ? `${docente.nombre} ${docente.apellidoPaterno} ${docente.apellidoMaterno}` : 'Docente Asignado';
+    asesoria.fechaProgramada = params.fecha;
+    asesoria.horaInicio = params.horaInicio;
+    asesoria.horaTermino = params.horaTermino;
+    asesoria.aulaId = params.aulaId;
+    asesoria.aulaNombre = aula ? aula.nombre : 'Aula asignada';
+    asesoria.modalidad = params.modalidad;
+    asesoria.observaciones = params.observaciones;
+    asesoria.estado = 'confirmada';
+
+    this.updateAsesoria(asesoria, params.actor, 'ASESORIA_ASIGNADA_Y_CONFIRMADA', `Docente: ${asesoria.docenteAsignadoNombre}, Fecha: ${params.fecha} ${params.horaInicio}`);
+
+    // Notify Student
+    this.sendNotification({
+      userId: asesoria.alumnoId,
+      titulo: 'Asesoría Programada y Confirmada',
+      mensaje: `Tu asesoría de ${asesoria.materiaNombre} (${asesoria.folio}) fue asignada con ${asesoria.docenteAsignadoNombre} para el día ${params.fecha} de ${params.horaInicio} a ${params.horaTermino} en ${asesoria.aulaNombre}.`,
+      tipo: 'asignacion',
+      referenciaId: asesoria.id
+    });
+
+    // Notify Teacher
+    this.sendNotification({
+      userId: params.docenteId,
+      titulo: 'Nueva Asesoría Asignada',
+      mensaje: `Has sido asignado como asesor de ${asesoria.alumnoNombre} (${asesoria.folio}) en ${asesoria.materiaNombre} el ${params.fecha} de ${params.horaInicio} a ${params.horaTermino}.`,
+      tipo: 'asignacion',
+      referenciaId: asesoria.id
+    });
+
+    return { success: true };
+  }
+
+  // Register follow-up (Docente)
+  static registrarSeguimiento(params: {
+    asesoriaId: string;
+    temasTrabajados: string;
+    dificultadesDetectadas: string;
+    actividadesRealizadas: string;
+    resultado: 'satisfactorio' | 'parcialmente_satisfactorio' | 'no_satisfactorio' | 'requiere_reforzamiento';
+    recomendaciones: string;
+    observaciones: string;
+    requiereNuevaAsesoria: boolean;
+    evidencias: { id: string; nombre: string; url: string; tipo: string; fecha: string; tamanio?: string }[];
+    actor: User;
+  }): { success: boolean; message?: string } {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === params.asesoriaId);
+    if (!asesoria) return { success: false, message: 'Asesoría no encontrada' };
+
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    asesoria.seguimiento = {
+      temasTrabajados: params.temasTrabajados,
+      dificultadesDetectadas: params.dificultadesDetectadas,
+      actividadesRealizadas: params.actividadesRealizadas,
+      resultado: params.resultado,
+      recomendaciones: params.recomendaciones,
+      observaciones: params.observaciones,
+      requiereNuevaAsesoria: params.requiereNuevaAsesoria,
+      fechaSeguimiento: fecha,
+      evidencias: params.evidencias
+    };
+    asesoria.estado = 'realizada';
+
+    this.updateAsesoria(asesoria, params.actor, 'SEGUIMIENTO_REGISTRADO', `Resultado: ${params.resultado}. Nueva asesoría: ${params.requiereNuevaAsesoria ? 'Sí' : 'No'}`);
+
+    // Notify student
+    this.sendNotification({
+      userId: asesoria.alumnoId,
+      titulo: 'Resultado de Asesoría Registrado',
+      mensaje: `El docente ha registrado el seguimiento de tu asesoría en ${asesoria.materiaNombre}. Puedes consultar la ficha oficial de resultados.`,
+      tipo: 'seguimiento',
+      referenciaId: asesoria.id
+    });
+
+    return { success: true };
+  }
+
+  // Close advisory (Admin / Director)
+  static cerrarAsesoria(asesoriaId: string, actor: User): { success: boolean } {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === asesoriaId);
+    if (!asesoria) return { success: false };
+
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    asesoria.fechaCierre = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+    asesoria.estado = 'cerrada';
+
+    this.updateAsesoria(asesoria, actor, 'ASESORIA_CERRADA', 'Cierre oficial y archivo del expediente de asesoría.');
+    return { success: true };
+  }
+
+  // Cancel advisory
+  static cancelarAsesoria(asesoriaId: string, motivo: string, actor: User): { success: boolean } {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === asesoriaId);
+    if (!asesoria) return { success: false };
+
+    asesoria.estado = 'cancelada';
+    asesoria.observaciones = `Cancelada: ${motivo}`;
+
+    this.updateAsesoria(asesoria, actor, 'ASESORIA_CANCELADA', `Motivo: ${motivo}`);
+
+    // Notify student & teacher
+    this.sendNotification({
+      userId: asesoria.alumnoId,
+      titulo: 'Asesoría Cancelada',
+      mensaje: `La asesoría ${asesoria.folio} ha sido cancelada. Motivo: ${motivo}`,
+      tipo: 'cancelacion',
+      referenciaId: asesoria.id
+    });
+
+    if (asesoria.docenteAsignadoId) {
+      this.sendNotification({
+        userId: asesoria.docenteAsignadoId,
+        titulo: 'Asesoría Cancelada',
+        mensaje: `La asesoría ${asesoria.folio} programada para el alumno ${asesoria.alumnoNombre} ha sido cancelada. Motivo: ${motivo}`,
+        tipo: 'cancelacion',
+        referenciaId: asesoria.id
+      });
+    }
+
+    return { success: true };
+  }
+
+  // Availability management
+  static addDisponibilidadRecurrente(disp: Omit<DisponibilidadRecurrente, 'id'>): DisponibilidadRecurrente {
+    const list = this.getDisponibilidadesRecurrentes();
+    const newDisp: DisponibilidadRecurrente = {
+      ...disp,
+      id: `disp-rec-${Date.now()}`
+    };
+    list.push(newDisp);
+    setStored(STORAGE_KEYS.DISP_REC, list);
+    return newDisp;
+  }
+
+  static saveDisponibilidadRecurrente(disp: DisponibilidadRecurrente): void {
+    const list = this.getDisponibilidadesRecurrentes();
+    const idx = list.findIndex(d => d.id === disp.id);
+    if (idx >= 0) {
+      list[idx] = disp;
+    } else {
+      list.push(disp);
+    }
+    setStored(STORAGE_KEYS.DISP_REC, list);
+  }
+
+  static deleteDisponibilidadRecurrente(id: string): void {
+    const list = this.getDisponibilidadesRecurrentes();
+    setStored(STORAGE_KEYS.DISP_REC, list.filter(d => d.id !== id));
+  }
+
+  static saveDisponibilidadEspecifica(disp: DisponibilidadEspecifica): void {
+    const list = this.getDisponibilidadesEspecificas();
+    const idx = list.findIndex(d => d.id === disp.id);
+    if (idx >= 0) {
+      list[idx] = disp;
+    } else {
+      list.push(disp);
+    }
+    setStored(STORAGE_KEYS.DISP_ESP, list);
+  }
+
+  static deleteDisponibilidadEspecifica(id: string): void {
+    const list = this.getDisponibilidadesEspecificas();
+    setStored(STORAGE_KEYS.DISP_ESP, list.filter(d => d.id !== id));
+  }
+
+  // User management
+  static createUser(
+    userData: Omit<User, 'uid' | 'fechaCreacion' | 'fechaActualizacion'>,
+    actor: User
+  ): User {
+    const list = this.getUsers();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    const newUser: User = {
+      ...userData,
+      uid: `user-${Date.now()}`,
+      fechaCreacion: today,
+      fechaActualizacion: today
+    };
+
+    list.push(newUser);
+    setStored(STORAGE_KEYS.USERS, list);
+
+    this.logAudit({
+      usuarioId: actor.uid,
+      usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+      rol: actor.rol,
+      accion: 'USUARIO_CREADO',
+      modulo: 'Usuarios',
+      documentoAfectado: newUser.correo,
+      detalles: `Nombre: ${newUser.nombre} ${newUser.apellidoPaterno}, Rol: ${newUser.rol}`
+    });
+
+    return newUser;
+  }
+
+  static updateUser(uid: string, updates: Partial<User>, actor: User): User | undefined {
+    const list = this.getUsers();
+    const idx = list.findIndex(u => u.uid === uid);
+    if (idx === -1) return undefined;
+
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    const updatedUser: User = {
+      ...list[idx],
+      ...updates,
+      fechaActualizacion: today
+    };
+    list[idx] = updatedUser;
+    setStored(STORAGE_KEYS.USERS, list);
+
+    this.logAudit({
+      usuarioId: actor.uid,
+      usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+      rol: actor.rol,
+      accion: 'USUARIO_ACTUALIZADO',
+      modulo: 'Usuarios',
+      documentoAfectado: updatedUser.correo,
+      detalles: `Actualización de campos en usuario: ${updatedUser.nombre} ${updatedUser.apellidoPaterno}`
+    });
+
+    return updatedUser;
+  }
+
+  static resetPassword(uid: string, _newPass: string, actor: User): void {
+    const list = this.getUsers();
+    const user = list.find(u => u.uid === uid);
+    if (!user) return;
+
+    this.logAudit({
+      usuarioId: actor.uid,
+      usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+      rol: actor.rol,
+      accion: 'RESTABLECIMIENTO_CONTRASENA',
+      modulo: 'Seguridad',
+      documentoAfectado: user.correo,
+      detalles: `Restablecimiento de contraseña para ${user.correo}`
+    });
+  }
+
+  static saveUser(user: User, actor: User): void {
+    const list = this.getUsers();
+    const idx = list.findIndex(u => u.uid === user.uid);
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    if (idx >= 0) {
+      user.fechaActualizacion = today;
+      list[idx] = user;
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'USUARIO_ACTUALIZADO',
+        modulo: 'Usuarios',
+        documentoAfectado: user.correo,
+        detalles: `Rol: ${user.rol}, Estado: ${user.estado}`
+      });
+    } else {
+      user.fechaCreacion = today;
+      user.fechaActualizacion = today;
+      list.push(user);
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'USUARIO_CREADO',
+        modulo: 'Usuarios',
+        documentoAfectado: user.correo,
+        detalles: `Nombre: ${user.nombre} ${user.apellidoPaterno}, Rol: ${user.rol}`
+      });
+    }
+    setStored(STORAGE_KEYS.USERS, list);
+  }
+
+  static toggleUserStatus(uid: string, actor: User): User | undefined {
+    const list = this.getUsers();
+    const user = list.find(u => u.uid === uid);
+    if (user) {
+      user.estado = user.estado === 'activo' ? 'inactivo' : 'activo';
+      setStored(STORAGE_KEYS.USERS, list);
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'ESTADO_USUARIO_CAMBIADO',
+        modulo: 'Usuarios',
+        documentoAfectado: user.correo,
+        detalles: `Nuevo estado: ${user.estado}`
+      });
+    }
+    return user;
+  }
+
+  // Catalog methods
+  static addCarrera(carrera: Omit<Carrera, 'id'>): Carrera {
+    const list = this.getCarreras();
+    const newCarrera: Carrera = {
+      ...carrera,
+      id: `carr-${Date.now()}`
+    };
+    list.push(newCarrera);
+    setStored(STORAGE_KEYS.CARRERAS, list);
+    return newCarrera;
+  }
+
+  static updateCarrera(id: string, updates: Partial<Carrera>): Carrera | undefined {
+    const list = this.getCarreras();
+    const idx = list.findIndex(c => c.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...updates };
+    setStored(STORAGE_KEYS.CARRERAS, list);
+    return list[idx];
+  }
+
+  static addMateria(materia: Omit<Materia, 'id'>): Materia {
+    const list = this.getMaterias();
+    const newMateria: Materia = {
+      ...materia,
+      id: `mat-${Date.now()}`
+    };
+    list.push(newMateria);
+    setStored(STORAGE_KEYS.MATERIAS, list);
+    return newMateria;
+  }
+
+  static updateMateria(id: string, updates: Partial<Materia>): Materia | undefined {
+    const list = this.getMaterias();
+    const idx = list.findIndex(m => m.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...updates };
+    setStored(STORAGE_KEYS.MATERIAS, list);
+    return list[idx];
+  }
+
+  static addAula(aula: Omit<Aula, 'id'>): Aula {
+    const list = this.getAulas();
+    const newAula: Aula = {
+      ...aula,
+      id: `aula-${Date.now()}`
+    };
+    list.push(newAula);
+    setStored(STORAGE_KEYS.AULAS, list);
+    return newAula;
+  }
+
+  static updateAula(id: string, updates: Partial<Aula>): Aula | undefined {
+    const list = this.getAulas();
+    const idx = list.findIndex(a => a.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...updates };
+    setStored(STORAGE_KEYS.AULAS, list);
+    return list[idx];
+  }
+
+  static addGrupo(grupo: Omit<Grupo, 'id'>): Grupo {
+    const list = this.getGrupos();
+    const newGrupo: Grupo = {
+      ...grupo,
+      id: `grup-${Date.now()}`
+    };
+    list.push(newGrupo);
+    setStored(STORAGE_KEYS.GRUPOS, list);
+    return newGrupo;
+  }
+
+  static resetToSeedData(): void {
+    localStorage.removeItem(STORAGE_KEYS.USERS);
+    localStorage.removeItem(STORAGE_KEYS.CARRERAS);
+    localStorage.removeItem(STORAGE_KEYS.CUATRIMESTRES);
+    localStorage.removeItem(STORAGE_KEYS.GRUPOS);
+    localStorage.removeItem(STORAGE_KEYS.MATERIAS);
+    localStorage.removeItem(STORAGE_KEYS.AULAS);
+    localStorage.removeItem(STORAGE_KEYS.DISP_REC);
+    localStorage.removeItem(STORAGE_KEYS.DISP_ESP);
+    localStorage.removeItem(STORAGE_KEYS.ASESORIAS);
+    localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+    localStorage.removeItem(STORAGE_KEYS.AUDIT);
+  }
+
+  // Filter application
+  static filterAsesorias(asesorias: Asesoria[], filters: FilterParams): Asesoria[] {
+    return asesorias.filter(a => {
+      if (filters.fechaInicio && a.fechaProgramada && a.fechaProgramada < filters.fechaInicio) return false;
+      if (filters.fechaFin && a.fechaProgramada && a.fechaProgramada > filters.fechaFin) return false;
+      if (filters.carreraId && a.carreraId !== filters.carreraId) return false;
+      if (filters.grupoId && a.grupoId !== filters.grupoId) return false;
+      if (filters.cuatrimestreId && a.cuatrimestreId !== filters.cuatrimestreId) return false;
+      if (filters.materiaId && a.materiaId !== filters.materiaId) return false;
+      if (filters.docenteId && a.docenteAsignadoId !== filters.docenteId) return false;
+      if (filters.estado && a.estado !== filters.estado) return false;
+      if (filters.modalidad && a.modalidad !== filters.modalidad) return false;
+      if (filters.aulaId && a.aulaId !== filters.aulaId) return false;
+      if (filters.matricula && !a.matricula.toLowerCase().includes(filters.matricula.toLowerCase())) return false;
+      if (filters.alumno) {
+        const query = filters.alumno.toLowerCase();
+        const matchesName = a.alumnoNombre.toLowerCase().includes(query);
+        const matchesMatricula = a.matricula.toLowerCase().includes(query);
+        if (!matchesName && !matchesMatricula) return false;
+      }
+      return true;
+    });
+  }
+
+  // Export to XLSX (Requirement 23)
+  static exportToXLSX(data: Asesoria[], customFilename?: string): void {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const filename = customFilename || `Reporte_Asesorias_SIAA_${dateStr}.xlsx`;
+
+    const rows = data.map(item => ({
+      'Folio': item.folio,
+      'Fecha Solicitud': item.fechaSolicitud,
+      'Matrícula': item.matricula,
+      'Alumno': item.alumnoNombre,
+      'Carrera': item.carreraNombre,
+      'Grupo': item.grupoNombre,
+      'Materia': item.materiaNombre,
+      'Código Materia': item.materiaCodigo,
+      'Docente Asesor': item.docenteAsignadoNombre || 'No asignado',
+      'Fecha Programada': item.fechaProgramada || 'Sin programar',
+      'Hora Inicio': item.horaInicio || '--',
+      'Hora Término': item.horaTermino || '--',
+      'Modalidad': item.modalidad ? item.modalidad.toUpperCase() : 'N/A',
+      'Aula': item.aulaNombre || 'Sin aula',
+      'Estado': item.estado.toUpperCase().replace('_', ' '),
+      'Prioridad': item.prioridad.toUpperCase(),
+      'Resultado': item.seguimiento ? item.seguimiento.resultado.toUpperCase().replace('_', ' ') : 'Pendiente',
+      'Observaciones': item.observaciones || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    // Auto calculate column widths
+    const colWidths = Object.keys(rows[0] || {}).map(key => ({
+      wch: Math.max(key.length, 14)
+    }));
+    worksheet['!cols'] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Asesorías SIAA');
+    XLSX.writeFile(workbook, filename);
+  }
+
+  static exportToExcel(data: Asesoria[], customFilename?: string): void {
+    this.exportToXLSX(data, customFilename);
+  }
+
+  // Export General Report to PDF (Requirement 24.1)
+  static exportReportPDF(data: Asesoria[], title: string = 'Reporte General de Asesorías Académicas'): void {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    // Institutional Header
+    doc.setFillColor(19, 78, 74); // Institutional Green #134e4a
+    doc.rect(0, 0, 297, 24, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('SIAA — SISTEMA INTEGRAL DE ASESORÍAS ACADÉMICAS', 14, 11);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(218, 165, 32); // Gold accent
+    doc.text('DIRECCIÓN DE GESTIÓN Y SEGUIMIENTO ACADÉMICO UNIVERSITARIO', 14, 18);
+
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Fecha de emisión: ${dateStr}`, 235, 18);
+
+    // Subtitle & Metrics
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(title, 14, 34);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    const realizadas = data.filter(d => d.estado === 'realizada' || d.estado === 'cerrada').length;
+    const confirmadas = data.filter(d => d.estado === 'confirmada' || d.estado === 'asignada').length;
+    const pendientes = data.filter(d => d.estado === 'pendiente' || d.estado === 'en_revision').length;
+
+    doc.text(`Total registros: ${data.length}  |  Realizadas/Cerradas: ${realizadas}  |  Programadas: ${confirmadas}  |  Pendientes: ${pendientes}`, 14, 41);
+
+    // Table
+    const tableBody = data.map(item => [
+      item.folio,
+      item.matricula,
+      item.alumnoNombre,
+      item.materiaNombre,
+      item.docenteAsignadoNombre || 'No asignado',
+      item.fechaProgramada || item.fechaSolicitud,
+      item.horaInicio ? `${item.horaInicio}-${item.horaTermino}` : '--',
+      item.aulaNombre || 'Virtual / Por definir',
+      item.estado.toUpperCase().replace('_', ' ')
+    ]);
+
+    autoTable(doc, {
+      startY: 46,
+      head: [['Folio', 'Matrícula', 'Alumno', 'Materia', 'Docente Asesor', 'Fecha', 'Horario', 'Aula', 'Estado']],
+      body: tableBody,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [19, 78, 74],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8.5
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.5,
+        textColor: [30, 41, 59]
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    doc.save(`Reporte_SIAA_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.pdf`);
+  }
+
+  static exportGeneralReportPDF(data: Asesoria[], title: string = 'Reporte General de Asesorías Académicas'): void {
+    this.exportReportPDF(data, title);
+  }
+
+  // Export Individual Advisory Sheet to PDF (Requirement 24.2 - Ficha de Asesoría)
+  static exportFichaPDF(asesoria: Asesoria): void {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const now = new Date();
+    const printDate = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    // Header bar
+    doc.setFillColor(19, 78, 74); // Emerald
+    doc.rect(0, 0, 216, 32, 'F');
+
+    // Gold accent stripe
+    doc.setFillColor(202, 138, 4); // Gold
+    doc.rect(0, 32, 216, 2.5, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('SIAA — SISTEMA INTEGRAL DE ASESORÍAS ACADÉMICAS', 14, 14);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(254, 240, 138);
+    doc.text('FICHA OFICIAL DE ASESORÍA ACADÉMICA Y SEGUIMIENTO PEDAGÓGICO', 14, 22);
+
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Impresión: ${printDate}`, 160, 22);
+
+    // Folio & Status Badge Box
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(14, 40, 188, 16, 2, 2, 'F');
+    doc.setTextColor(19, 78, 74);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(`FOLIO: ${asesoria.folio}`, 20, 50);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`ESTADO:`, 110, 50);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.text(asesoria.estado.toUpperCase().replace('_', ' '), 130, 50);
+
+    // Section 1: Datos del Alumno y Académicos
+    let currentY = 64;
+    doc.setFillColor(226, 232, 240);
+    doc.rect(14, currentY, 188, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(19, 78, 74);
+    doc.text('1. INFORMACIÓN DEL ALUMNO Y PROGRAMA ACADÉMICO', 18, currentY + 5);
+
+    currentY += 12;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Nombre del Alumno:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(asesoria.alumnoNombre, 55, currentY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Matrícula:', 130, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(asesoria.matricula, 150, currentY);
+
+    currentY += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Carrera:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(asesoria.carreraNombre, 55, currentY, { maxWidth: 140 });
+
+    currentY += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Grupo:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(asesoria.grupoNombre, 55, currentY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Cuatrimestre:', 130, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${asesoria.cuatrimestreNumero}° Cuatrimestre`, 155, currentY);
+
+    // Section 2: Datos de la Asesoría
+    currentY += 10;
+    doc.setFillColor(226, 232, 240);
+    doc.rect(14, currentY, 188, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(19, 78, 74);
+    doc.text('2. DETALLES DE LA ASESORÍA Y PROGRAMACIÓN', 18, currentY + 5);
+
+    currentY += 12;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Materia:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${asesoria.materiaNombre} (${asesoria.materiaCodigo})`, 55, currentY);
+
+    currentY += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Docente Asesor:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(asesoria.docenteAsignadoNombre || 'Por asignar', 55, currentY);
+
+    currentY += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Fecha y Horario:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    const fechaHora = asesoria.fechaProgramada ? `${asesoria.fechaProgramada}  (${asesoria.horaInicio} - ${asesoria.horaTermino} hrs)` : 'No programada';
+    doc.text(fechaHora, 55, currentY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Modalidad:', 130, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text((asesoria.modalidad || 'presencial').toUpperCase(), 150, currentY);
+
+    currentY += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Aula / Espacio:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(asesoria.aulaNombre || 'Por definir', 55, currentY);
+
+    currentY += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Temas solicitados:', 18, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(asesoria.temasDificultad, 55, currentY, { maxWidth: 140 });
+
+    // Section 3: Seguimiento y Resultados
+    currentY += 12;
+    doc.setFillColor(226, 232, 240);
+    doc.rect(14, currentY, 188, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(19, 78, 74);
+    doc.text('3. RESULTADOS PEDAGÓGICOS Y SEGUIMIENTO DEL DOCENTE', 18, currentY + 5);
+
+    currentY += 12;
+    if (asesoria.seguimiento) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Temas Trabajados:', 18, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.text(asesoria.seguimiento.temasTrabajados, 55, currentY, { maxWidth: 140 });
+
+      currentY += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('Dificultades:', 18, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.text(asesoria.seguimiento.dificultadesDetectadas, 55, currentY, { maxWidth: 140 });
+
+      currentY += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('Resultado Obtenido:', 18, currentY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(19, 78, 74);
+      doc.text(asesoria.seguimiento.resultado.toUpperCase().replace('_', ' '), 55, currentY);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('¿Requiere nueva asesoría?:', 120, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.text(asesoria.seguimiento.requiereNuevaAsesoria ? 'SÍ' : 'NO', 170, currentY);
+
+      currentY += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('Recomendaciones:', 18, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.text(asesoria.seguimiento.recomendaciones, 55, currentY, { maxWidth: 140 });
+    } else {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text('La asesoría aún no cuenta con registro de seguimiento por parte del docente asesor asignado.', 18, currentY);
+    }
+
+    // Signatures Section
+    const signY = 230;
+    doc.setDrawColor(148, 163, 184);
+    doc.line(24, signY, 80, signY);
+    doc.line(130, signY, 190, signY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.text('FIRMA DEL DOCENTE ASESOR', 30, signY + 5);
+    doc.text('FIRMA DEL ALUMNO ASESORADO', 134, signY + 5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(asesoria.docenteAsignadoNombre || 'Nombre y Firma', 30, signY + 9);
+    doc.text(asesoria.alumnoNombre, 134, signY + 9);
+
+    // Document footer
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Este documento forma parte del expediente oficial de tutorías y asesorías académicas institucionales.', 14, 260);
+
+    doc.save(`Ficha_Asesoria_${asesoria.folio}.pdf`);
+  }
+}
