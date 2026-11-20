@@ -213,5 +213,54 @@ export function canAccessReports(role?: UserRole | string | null): boolean {
 /** True if role needs carreraId linkage in user profiles */
 export function roleUsesCareerAssignment(role?: UserRole | string | null): boolean {
   const r = normalizeUserRole(role);
-  return r === 'alumno' || r === 'jefe_carrera' || r === 'ptc_tutor' || r === 'pa' || r === 'director';
+  return r === 'alumno' || r === 'jefe_carrera' || r === 'ptc_tutor' || r === 'pa' || r === 'administrativo_docente' || r === 'director';
 }
+
+/** True if role supports adscription to multiple careers simultaneously */
+export function roleSupportsMultiCareer(role?: UserRole | string | null): boolean {
+  return normalizeUserRole(role) !== 'alumno';
+}
+
+/** Returns deduplicated career IDs assigned to a user (merging carrerasIds and primary carreraId) */
+export function getUserCarreraIds(
+  user?: { carreraId?: string; carrerasIds?: string[] } | null
+): string[] {
+  if (!user) return [];
+  const merged = [
+    ...(Array.isArray(user.carrerasIds) ? user.carrerasIds : []),
+    ...(user.carreraId ? [user.carreraId] : [])
+  ].filter(Boolean);
+  return Array.from(new Set(merged));
+}
+
+/** Checks if a user is adscribed to a given career ID */
+export function userHasCarrera(
+  user: { carreraId?: string; carrerasIds?: string[] } | null | undefined,
+  targetCarreraId?: string | null
+): boolean {
+  if (!targetCarreraId || targetCarreraId === 'all') return true;
+  const ids = getUserCarreraIds(user);
+  return ids.includes(targetCarreraId);
+}
+
+/**
+ * Checks if a user falls within a supervisor's career scope.
+ * If the supervisor has no careers assigned (institutional scope) or the target user has no careers, returns true.
+ * Otherwise requires at least one overlapping career ID.
+ */
+export function userMatchesCareerScope(
+  targetUser: { carreraId?: string; carrerasIds?: string[] } | null | undefined,
+  supervisorCarreraIds: string[]
+): boolean {
+  if (supervisorCarreraIds.length === 0) return true;
+  const targetIds = getUserCarreraIds(targetUser);
+  if (targetIds.length === 0) return true;
+  return targetIds.some(id => supervisorCarreraIds.includes(id));
+}
+
+/** Returns all hierarchical roles strictly below the given role (higher nivel number) */
+export function getDownwardRoles(role?: UserRole | string | null): UserRole[] {
+  const currentNivel = getRoleMeta(role).nivel;
+  return ROLE_HIERARCHY.filter(r => r.nivel > currentNivel).map(r => r.code);
+}
+

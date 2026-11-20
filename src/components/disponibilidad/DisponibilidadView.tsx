@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { isTeachingRole, getRoleMeta } from '../../utils/roles';
+import { isTeachingRole, getRoleMeta, getUserCarreraIds, userMatchesCareerScope } from '../../utils/roles';
 
 interface DisponibilidadViewProps {
   onOpenBulkImport?: () => void;
@@ -21,10 +21,12 @@ interface DisponibilidadViewProps {
 
 export const DisponibilidadView: React.FC<DisponibilidadViewProps> = ({ onOpenBulkImport }) => {
   const { currentUser, currentRole } = useAuth();
+  const carreras = SIAADataService.getCarreras();
+  const userCarreras = getUserCarreraIds(currentUser);
   const allDocentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
   const docentes =
-    currentRole === 'jefe_carrera' && currentUser?.carreraId
-      ? allDocentes.filter(d => !d.carreraId || d.carreraId === currentUser.carreraId)
+    currentRole === 'jefe_carrera' && userCarreras.length > 0
+      ? allDocentes.filter(d => userMatchesCareerScope(d, userCarreras))
       : allDocentes;
 
   const isTeacherSelf = isTeachingRole(currentRole);
@@ -152,11 +154,17 @@ export const DisponibilidadView: React.FC<DisponibilidadViewProps> = ({ onOpenBu
               onChange={(e) => setSelectedDocenteId(e.target.value)}
               className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium focus:ring-2 focus:ring-emerald-700"
             >
-              {docentes.map(d => (
-                <option key={d.uid} value={d.uid}>
-                  {d.nombre} {d.apellidoPaterno} ({getRoleMeta(d.rol).shortLabel})
-                </option>
-              ))}
+              {docentes.map(d => {
+                const codes = getUserCarreraIds(d)
+                  .map(id => carreras.find(c => c.id === id)?.codigo)
+                  .filter(Boolean)
+                  .join(', ');
+                return (
+                  <option key={d.uid} value={d.uid}>
+                    {d.nombre} {d.apellidoPaterno} ({getRoleMeta(d.rol).shortLabel}{codes ? ` • ${codes}` : ''})
+                  </option>
+                );
+              })}
             </select>
           )}
           {currentRole === 'admin' && onOpenBulkImport && (

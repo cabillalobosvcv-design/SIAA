@@ -17,7 +17,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { SIAADataService } from '../../services/siaaService';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
-import { getRoleMeta, isTeachingRole, canCreateSolicitudForStudents } from '../../utils/roles';
+import {
+  ROLE_HIERARCHY,
+  getRoleMeta,
+  isTeachingRole,
+  canCreateSolicitudForStudents,
+  getUserCarreraIds,
+  userMatchesCareerScope
+} from '../../utils/roles';
 import {
   BarChart,
   Bar,
@@ -61,18 +68,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     color: isDark ? '#f1f5f9' : '#0f172a'
   };
 
+  const currentUserCarreras = getUserCarreraIds(currentUser);
+
   // Filters for Director / Jefe de Carrera Dashboard
   const [selectedCarrera, setSelectedCarrera] = useState<string>(
-    currentRole === 'jefe_carrera' && currentUser?.carreraId ? currentUser.carreraId : 'all'
+    currentRole === 'jefe_carrera' && currentUserCarreras.length === 1 ? currentUserCarreras[0] : 'all'
   );
 
   useEffect(() => {
-    if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
-      setSelectedCarrera(currentUser.carreraId);
-    } else if (currentRole === 'director') {
+    if (currentRole === 'jefe_carrera' && currentUserCarreras.length === 1) {
+      setSelectedCarrera(currentUserCarreras[0]);
+    } else {
       setSelectedCarrera('all');
     }
-  }, [currentRole, currentUser?.carreraId]);
+  }, [currentRole, currentUser?.uid, currentUserCarreras.join(',')]);
 
   // ----------------------------------------------------
   // 1. DASHBOARD DEL ALUMNO (Requirement 39)
@@ -300,6 +309,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   if (isTeachingRole(currentRole)) {
     const roleMeta = getRoleMeta(currentRole);
     const canCanalizar = canCreateSolicitudForStudents(currentRole);
+    const misCarreras = currentUserCarreras
+      .map(id => carreras.find(c => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
     const misAsesorias = asesorias.filter(a => a.docenteAsignadoId === currentUser?.uid);
     const todayStr = new Date().toISOString().split('T')[0];
     const hoy = misAsesorias.filter(a => a.fechaProgramada === todayStr && (a.estado === 'confirmada' || a.estado === 'asignada' || a.estado === 'en_proceso'));
@@ -326,6 +338,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               No. Empleado: <span className="font-mono font-medium">{currentUser?.numeroEmpleado || 'N/A'}</span> | {currentUser?.correo}
             </p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Carreras adscritas:</span>
+              {misCarreras.length > 0 ? (
+                misCarreras.map(c => (
+                  <span
+                    key={c.id}
+                    title={c.nombre}
+                    className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200"
+                  >
+                    {c.codigo}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Todas (Institucional)</span>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             {canCanalizar && (
@@ -489,24 +517,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // ----------------------------------------------------
   if (currentRole === 'director' || currentRole === 'jefe_carrera') {
     const roleMeta = getRoleMeta(currentRole);
-    const effectiveCarrera =
-      currentRole === 'jefe_carrera' && currentUser?.carreraId
-        ? currentUser.carreraId
-        : selectedCarrera;
+    const availableCarreras =
+      currentRole === 'jefe_carrera' && currentUserCarreras.length > 0
+        ? carreras.filter(c => currentUserCarreras.includes(c.id))
+        : currentUserCarreras.length > 0
+        ? carreras.filter(c => currentUserCarreras.includes(c.id))
+        : carreras;
 
-    const filteredByCarrera = effectiveCarrera === 'all'
-      ? asesorias
-      : asesorias.filter(a => a.carreraId === effectiveCarrera);
+    const activeScopeIds =
+      selectedCarrera !== 'all'
+        ? [selectedCarrera]
+        : currentUserCarreras.length > 0
+        ? currentUserCarreras
+        : [];
+
+    const filteredByCarrera =
+      activeScopeIds.length === 0
+        ? asesorias
+        : asesorias.filter(a => activeScopeIds.includes(a.carreraId));
 
     const totalAlumnos = users.filter(
-      u => u.rol === 'alumno' && u.estado === 'activo' && (effectiveCarrera === 'all' || u.carreraId === effectiveCarrera)
+      u => u.rol === 'alumno' && u.estado === 'activo' && userMatchesCareerScope(u, activeScopeIds)
     ).length;
     const totalDocentes = users.filter(
-      u => isTeachingRole(u.rol) && u.estado === 'activo' && (effectiveCarrera === 'all' || !u.carreraId || u.carreraId === effectiveCarrera)
+      u => isTeachingRole(u.rol) && u.estado === 'activo' && userMatchesCareerScope(u, activeScopeIds)
     ).length;
     const pendientes = filteredByCarrera.filter(a => a.estado === 'pendiente' || a.estado === 'en_revision');
     const aprobadas = filteredByCarrera.filter(a => a.estado === 'aprobada' || a.estado === 'asignada' || a.estado === 'confirmada');
     const realizadas = filteredByCarrera.filter(a => a.estado === 'realizada' || a.estado === 'cerrada');
+
+    // Downward hierarchy users within active career scope
+    const downwardLevels = ROLE_HIERARCHY.filter(l => l.nivel > roleMeta.nivel);
+    const downwardUsers = users.filter(
+      u =>
+        u.estado === 'activo' &&
+        getRoleMeta(u.rol).nivel > roleMeta.nivel &&
+        userMatchesCareerScope(u, activeScopeIds)
+    );
 
     // Chart data: Asesorías por Materia
     const materiaCounts: Record<string, number> = {};
@@ -529,7 +576,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       value
     }));
 
-    const currentCareerObj = carreras.find(c => c.id === effectiveCarrera);
+    const scopeCodesLabel = availableCarreras.map(c => c.codigo).join(', ');
+    const selectedCareerObj = carreras.find(c => c.id === selectedCarrera);
 
     return (
       <div className="space-y-6 animate-fadeIn">
@@ -537,31 +585,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${roleMeta.badgeClass}`}>
-              Nivel {roleMeta.nivel} • {currentRole === 'director' ? 'Dirección de Asuntos Académicos' : `Jefatura de Carrera${currentCareerObj ? ` (${currentCareerObj.codigo})` : ''}`}
+              Nivel {roleMeta.nivel} • {currentRole === 'director'
+                ? `Dirección de Asuntos Académicos${currentUserCarreras.length > 0 ? ` (${scopeCodesLabel})` : ''}`
+                : `Jefatura de Carrera (${selectedCareerObj ? selectedCareerObj.codigo : scopeCodesLabel || 'Todas'})`}
             </span>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 font-serif">
-              Indicadores Académicos y Cumplimiento
+              Indicadores Académicos y Seguimiento Jerárquico
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {currentRole === 'jefe_carrera'
-                ? 'Supervisión, autorización y asignación docente para los alumnos y materias de su programa educativo.'
-                : 'Supervisión institucional de rezago pedagógico, asesorías preventivas y desempeño académico global.'}
+                ? 'Supervisión, autorización y seguimiento de los niveles inferiores en sus carreras adscritas.'
+                : 'Supervisión institucional de rezago pedagógico, desempeño y estructura jerárquica descendente.'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {currentRole === 'director' ? (
+            {(availableCarreras.length > 1 || currentRole === 'director') && (
               <select
                 value={selectedCarrera}
                 onChange={(e) => setSelectedCarrera(e.target.value)}
                 className="text-xs font-semibold px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-emerald-700"
               >
-                <option value="all">Todas las Carreras</option>
-                {carreras.map(c => (
+                <option value="all">
+                  {currentUserCarreras.length > 0 ? `Todas mis carreras (${scopeCodesLabel})` : 'Todas las Carreras'}
+                </option>
+                {availableCarreras.map(c => (
                   <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
                 ))}
               </select>
-            ) : (
+            )}
+
+            {currentRole === 'jefe_carrera' && (
               <button
                 type="button"
                 onClick={onOpenSolicitudModal}
@@ -597,13 +651,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Alumnos Registrados</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalAlumnos}</p>
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Padrón activo</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Nivel 7 en alcance</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Docentes Asesores</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalDocentes}</p>
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Claustro académico</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Niveles 4, 5 y 6 adscritos</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -673,6 +727,96 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </PieChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+
+        {/* Downward Hierarchical Tracking Section */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                Seguimiento Jerárquico de Niveles Inferiores
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Personal docente, jefaturas y alumnado bajo la cobertura de sus carreras adscritas ({downwardUsers.length} usuarios activos).
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {downwardLevels.map(lvl => {
+                const count = downwardUsers.filter(u => u.rol === lvl.code).length;
+                return (
+                  <span
+                    key={lvl.code}
+                    className={`px-2 py-0.5 rounded text-[11px] font-semibold ${lvl.badgeClass}`}
+                  >
+                    N{lvl.nivel} {lvl.shortLabel}: {count}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-4 py-3">Nivel / Rol</th>
+                  <th className="px-4 py-3">Nombre</th>
+                  <th className="px-4 py-3">Carreras Adscritas</th>
+                  <th className="px-4 py-3">Asesorías en Alcance</th>
+                  <th className="px-4 py-3">Realizadas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {downwardUsers
+                  .filter(u => u.rol !== 'alumno')
+                  .concat(downwardUsers.filter(u => u.rol === 'alumno').slice(0, 6))
+                  .map(sub => {
+                    const subMeta = getRoleMeta(sub.rol);
+                    const subCarrCodes = getUserCarreraIds(sub)
+                      .map(id => carreras.find(c => c.id === id)?.codigo)
+                      .filter(Boolean);
+                    const subAsesorias =
+                      sub.rol === 'alumno'
+                        ? filteredByCarrera.filter(a => a.alumnoId === sub.uid)
+                        : filteredByCarrera.filter(a => a.docenteAsignadoId === sub.uid);
+                    const subDone = subAsesorias.filter(a => a.estado === 'realizada' || a.estado === 'cerrada').length;
+                    return (
+                      <tr key={sub.uid} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-2.5">
+                          <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${subMeta.badgeClass}`}>
+                            N{subMeta.nivel} • {subMeta.shortLabel}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-slate-100">
+                          {sub.nombre} {sub.apellidoPaterno} {sub.apellidoMaterno}
+                          <span className="block text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                            {sub.matricula || sub.numeroEmpleado || sub.correo}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {subCarrCodes.length > 0 ? (
+                              subCarrCodes.map(code => (
+                                <span
+                                  key={code}
+                                  className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono font-semibold text-slate-700 dark:text-slate-300"
+                                >
+                                  {code}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-slate-400">Todas</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200">{subAsesorias.length}</td>
+                        <td className="px-4 py-2.5 font-bold text-emerald-700 dark:text-emerald-400">{subDone}</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

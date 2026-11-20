@@ -20,6 +20,7 @@ export interface User {
   telefono?: string;
   rol: UserRole;
   carreraId?: string;
+  carrerasIds?: string[];
   grupoId?: string;
   cuatrimestreId?: string;
   estado: UserStatus;

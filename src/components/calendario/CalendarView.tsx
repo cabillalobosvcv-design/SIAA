@@ -12,7 +12,7 @@ import {
   DoorOpen,
   Filter
 } from 'lucide-react';
-import { isTeachingRole } from '../../utils/roles';
+import { isTeachingRole, getUserCarreraIds, userHasCarrera, userMatchesCareerScope } from '../../utils/roles';
 
 interface CalendarViewProps {
   onSelectAdvisory: (id: string) => void;
@@ -21,7 +21,12 @@ interface CalendarViewProps {
 export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) => {
   const { currentUser, currentRole } = useAuth();
   const asesorias = SIAADataService.getAsesorias();
-  const docentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
+  const userCarreras = getUserCarreraIds(currentUser);
+  const allDocentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
+  const docentes =
+    (currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0
+      ? allDocentes.filter(d => userMatchesCareerScope(d, userCarreras))
+      : allDocentes;
   const aulas = SIAADataService.getAulas();
 
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date(2026, 8, 1)); // Sept 2026
@@ -35,8 +40,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
     displayAsesorias = displayAsesorias.filter(a => a.alumnoId === currentUser?.uid);
   } else if (isTeachingRole(currentRole)) {
     displayAsesorias = displayAsesorias.filter(a => a.docenteAsignadoId === currentUser?.uid);
-  } else if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
-    displayAsesorias = displayAsesorias.filter(a => a.carreraId === currentUser.carreraId);
+  } else if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
+    displayAsesorias = displayAsesorias.filter(a => userHasCarrera(currentUser, a.carreraId));
   }
 
   // Filter by teacher

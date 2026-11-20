@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { getRoleMeta } from '../../utils/roles';
+import { getRoleMeta, getUserCarreraIds } from '../../utils/roles';
 
 export const ProfileView: React.FC = () => {
   const { currentUser } = useAuth();
@@ -22,6 +22,11 @@ export const ProfileView: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   if (!currentUser) return null;
+
+  const carreras = SIAADataService.getCarreras();
+  const assignedCarreras = getUserCarreraIds(currentUser)
+    .map(id => carreras.find(c => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c));
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,10 +101,22 @@ export const ProfileView: React.FC = () => {
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-800/70 rounded-lg border border-transparent dark:border-slate-700/60">
-                <span className="text-slate-400 dark:text-slate-400 font-semibold block text-[10px] uppercase">Periodo Activo</span>
-                <p className="font-bold text-slate-800 dark:text-slate-100 mt-0.5">
-                  Ciclo 2026-3
-                </p>
+                <span className="text-slate-400 dark:text-slate-400 font-semibold block text-[10px] uppercase">Adscripción Académica</span>
+                <div className="mt-1 flex flex-wrap gap-1 justify-center sm:justify-start">
+                  {assignedCarreras.length > 0 ? (
+                    assignedCarreras.map(c => (
+                      <span
+                        key={c.id}
+                        title={c.nombre}
+                        className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-300 font-mono font-bold text-[11px]"
+                      >
+                        {c.codigo}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="font-bold text-slate-800 dark:text-slate-100">Institucional (Todas)</span>
+                  )}
+                </div>
               </div>
             </div>
 

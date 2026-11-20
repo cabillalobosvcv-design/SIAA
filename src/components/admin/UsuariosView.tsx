@@ -18,20 +18,30 @@ import {
   AlertCircle,
   Trash2,
   FileSpreadsheet,
-  Layers
+  Layers,
+  GitBranch,
+  Check
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { ROLE_HIERARCHY, getRoleMeta, isTeachingRole } from '../../utils/roles';
+import {
+  ROLE_HIERARCHY,
+  getRoleMeta,
+  isTeachingRole,
+  getUserCarreraIds,
+  userHasCarrera,
+  userMatchesCareerScope
+} from '../../utils/roles';
 
 interface UsuariosViewProps {
   onOpenBulkImport?: () => void;
 }
 
 export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUser } = useAuth();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [careerFilter, setCareerFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Modal states
@@ -43,6 +53,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
   const [newPassword, setNewPassword] = useState('');
   const [passSuccess, setPassSuccess] = useState(false);
   const [showHierarchyPanel, setShowHierarchyPanel] = useState(false);
+  const [trackingUser, setTrackingUser] = useState<SIAAUser | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
 
   // Form fields
@@ -54,6 +65,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
   const [matricula, setMatricula] = useState('');
   const [numeroEmpleado, setNumeroEmpleado] = useState('');
   const [carreraId, setCarreraId] = useState('');
+  const [carrerasIds, setCarrerasIds] = useState<string[]>([]);
   const [grupoId, setGrupoId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -61,6 +73,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
   const users = SIAADataService.getUsers();
   const carreras = SIAADataService.getCarreras();
   const grupos = SIAADataService.getGrupos();
+  const asesorias = SIAADataService.getAsesorias();
 
   let filtered = users;
   if (search.trim()) {
@@ -77,6 +90,9 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
   if (roleFilter !== 'all') {
     filtered = filtered.filter(u => u.rol === roleFilter);
   }
+  if (careerFilter !== 'all') {
+    filtered = filtered.filter(u => userHasCarrera(u, careerFilter));
+  }
   if (statusFilter !== 'all') {
     filtered = filtered.filter(u => u.estado === statusFilter);
   }
@@ -90,13 +106,16 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
     setRol('alumno');
     setMatricula('');
     setNumeroEmpleado('');
-    setCarreraId(carreras[0]?.id || '');
+    const defaultCarr = carreras[0]?.id || '';
+    setCarreraId(defaultCarr);
+    setCarrerasIds(defaultCarr ? [defaultCarr] : []);
     setGrupoId(grupos[0]?.id || '');
     setFormError(null);
     setIsFormModalOpen(true);
   };
 
   const openEditModal = (u: SIAAUser) => {
+    const userCarreras = getUserCarreraIds(u);
     setEditingUser(u);
     setNombre(u.nombre);
     setApellidoPaterno(u.apellidoPaterno);
@@ -105,10 +124,19 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
     setRol(u.rol);
     setMatricula(u.matricula || '');
     setNumeroEmpleado(u.numeroEmpleado || '');
-    setCarreraId(u.carreraId || '');
+    setCarreraId(userCarreras[0] || '');
+    setCarrerasIds(userCarreras);
     setGrupoId(u.grupoId || '');
     setFormError(null);
     setIsFormModalOpen(true);
+  };
+
+  const toggleCareerSelection = (cid: string) => {
+    setCarrerasIds(prev => {
+      const next = prev.includes(cid) ? prev.filter(id => id !== cid) : [...prev, cid];
+      setCarreraId(next[0] || '');
+      return next;
+    });
   };
 
   const handleSaveUser = (e: React.FormEvent) => {
@@ -120,7 +148,20 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
       return;
     }
 
+    if (rol === 'jefe_carrera' && carrerasIds.length === 0) {
+      setFormError('Un Jefe de Carrera debe tener al menos una carrera adscrita para el seguimiento.');
+      return;
+    }
+
     if (!currentUser) return;
+
+    const finalCarrerasIds =
+      rol === 'alumno'
+        ? carreraId
+          ? [carreraId]
+          : []
+        : carrerasIds;
+    const primaryCarreraId = finalCarrerasIds[0] || undefined;
 
     if (editingUser) {
       SIAADataService.updateUser(editingUser.uid, {
@@ -131,9 +172,14 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
         rol,
         matricula: rol === 'alumno' ? matricula.trim() : undefined,
         numeroEmpleado: rol !== 'alumno' ? numeroEmpleado.trim() : undefined,
-        carreraId: carreraId || undefined,
+        carreraId: primaryCarreraId,
+        carrerasIds: finalCarrerasIds,
         grupoId: rol === 'alumno' ? grupoId : undefined
       }, currentUser);
+
+      if (editingUser.uid === currentUser.uid) {
+        refreshUser();
+      }
     } else {
       SIAADataService.createUser({
         nombre: nombre.trim(),
@@ -143,7 +189,8 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
         rol,
         matricula: rol === 'alumno' ? matricula.trim() : undefined,
         numeroEmpleado: rol !== 'alumno' ? numeroEmpleado.trim() : undefined,
-        carreraId: carreraId || undefined,
+        carreraId: primaryCarreraId,
+        carrerasIds: finalCarrerasIds,
         grupoId: rol === 'alumno' ? grupoId : undefined,
         estado: 'activo'
       }, currentUser);
@@ -285,7 +332,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -295,6 +342,19 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
             {ROLE_HIERARCHY.map(level => (
               <option key={level.code} value={level.code}>
                 Nivel {level.nivel}: {level.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={careerFilter}
+            onChange={(e) => setCareerFilter(e.target.value)}
+            className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+          >
+            <option value="all">Todas las Carreras</option>
+            {carreras.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.codigo} — {c.nombre}
               </option>
             ))}
           </select>
@@ -345,7 +405,9 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                   <td className="px-4 py-3.5">
                     {(() => {
                       const meta = getRoleMeta(u.rol);
-                      const carr = u.carreraId ? carreras.find(c => c.id === u.carreraId) : undefined;
+                      const assignedCarrs = getUserCarreraIds(u)
+                        .map(id => carreras.find(c => c.id === id))
+                        .filter((c): c is NonNullable<typeof c> => Boolean(c));
                       return (
                         <div className="flex flex-col items-start gap-1">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${meta.badgeClass}`}>
@@ -355,10 +417,24 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                             {u.rol === 'alumno' && <UserIcon className="w-3 h-3 shrink-0" />}
                             <span>N{meta.nivel} • {meta.label}</span>
                           </span>
-                          {carr && (
-                            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                              Adscrito: {carr.codigo}
-                            </span>
+                          {assignedCarrs.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {assignedCarrs.map(carr => (
+                                <span
+                                  key={carr.id}
+                                  title={carr.nombre}
+                                  className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono font-semibold text-slate-700 dark:text-slate-300"
+                                >
+                                  {carr.codigo}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            u.rol !== 'alumno' && (
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                Ámbito institucional (Todas)
+                              </span>
+                            )
                           )}
                         </div>
                       );
@@ -378,6 +454,17 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                   </td>
                   <td className="px-4 py-3.5 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
+                      {u.rol !== 'alumno' && (
+                        <button
+                          type="button"
+                          onClick={() => setTrackingUser(u)}
+                          className="p-1.5 text-teal-700 dark:text-teal-400 hover:text-teal-900 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/50 rounded transition-colors"
+                          title="Ver seguimiento de niveles hacia abajo"
+                        >
+                          <GitBranch className="w-4 h-4" />
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => openEditModal(u)}
@@ -538,11 +625,14 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Carrera</label>
                 <select
                   value={carreraId}
-                  onChange={(e) => setCarreraId(e.target.value)}
+                  onChange={(e) => {
+                    setCarreraId(e.target.value);
+                    setCarrerasIds(e.target.value ? [e.target.value] : []);
+                  }}
                   className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
                 >
                   {carreras.map(c => (
-                    <option key={c.id} value={c.id}>{c.codigo}</option>
+                    <option key={c.id} value={c.id}>{c.codigo} — {c.nombre}</option>
                   ))}
                 </select>
               </div>
@@ -560,7 +650,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="space-y-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Número de Empleado / Clave</label>
                 <input
@@ -571,20 +661,78 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                   className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono"
                 />
               </div>
+
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Carrera Adscrita {rol === 'jefe_carrera' ? '*' : '(Opcional)'}
-                </label>
-                <select
-                  value={carreraId}
-                  onChange={(e) => setCarreraId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
-                >
-                  <option value="">Todas / Institucional</option>
-                  {carreras.map(c => (
-                    <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
-                  ))}
-                </select>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <label className="font-semibold text-slate-700 dark:text-slate-200">
+                    Adscripción a Carreras (Impartición / Seguimiento Jerárquico) {rol === 'jefe_carrera' ? '*' : ''}
+                  </label>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allIds = carreras.map(c => c.id);
+                        setCarrerasIds(allIds);
+                        setCarreraId(allIds[0] || '');
+                      }}
+                      className="text-emerald-800 dark:text-emerald-400 font-semibold hover:underline"
+                    >
+                      Seleccionar todas
+                    </button>
+                    <span className="text-slate-300 dark:text-slate-600">|</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCarrerasIds([]);
+                        setCarreraId('');
+                      }}
+                      className="text-slate-500 dark:text-slate-400 font-medium hover:underline"
+                    >
+                      Sin restricción (Institucional)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {carreras.map(c => {
+                    const isSelected = carrerasIds.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggleCareerSelection(c.id)}
+                        className={`p-2.5 rounded-lg border text-left transition-all flex items-start gap-2.5 ${
+                          isSelected
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 dark:border-emerald-600 text-emerald-950 dark:text-emerald-100 shadow-2xs'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+                        }`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 ${
+                            isSelected
+                              ? 'bg-emerald-700 border-emerald-700 text-white'
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-mono font-bold text-[11px]">{c.codigo}</p>
+                          <p className="text-[11px] leading-snug line-clamp-2 opacity-90">{c.nombre}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+                  {carrerasIds.length === 0
+                    ? 'Ámbito institucional global: podrá visualizar o impartir seguimiento en todas las carreras.'
+                    : `Adscrito a ${carrerasIds.length} ${carrerasIds.length === 1 ? 'carrera' : 'carreras'}: ${carrerasIds
+                        .map(id => carreras.find(c => c.id === id)?.codigo)
+                        .filter(Boolean)
+                        .join(', ')}.`}
+                </p>
               </div>
             </div>
           )}
@@ -655,6 +803,132 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
               </>
             )}
           </form>
+        </Modal>
+      )}
+
+      {/* Downward Hierarchical Tracking Modal */}
+      {trackingUser && (
+        <Modal
+          isOpen={!!trackingUser}
+          onClose={() => setTrackingUser(null)}
+          title={`Seguimiento Jerárquico — ${trackingUser.nombre} ${trackingUser.apellidoPaterno}`}
+          subtitle="Alcance de supervisión hacia los niveles inferiores según las carreras adscritas"
+          maxWidth="3xl"
+        >
+          {(() => {
+            const actorMeta = getRoleMeta(trackingUser.rol);
+            const scopeCarreras = getUserCarreraIds(trackingUser);
+            const scopeLabels = scopeCarreras
+              .map(id => carreras.find(c => c.id === id)?.codigo)
+              .filter(Boolean);
+
+            const downwardLevels = ROLE_HIERARCHY.filter(l => l.nivel > actorMeta.nivel);
+            const subordinates = users.filter(
+              u =>
+                u.uid !== trackingUser.uid &&
+                getRoleMeta(u.rol).nivel > actorMeta.nivel &&
+                userMatchesCareerScope(u, scopeCarreras)
+            );
+
+            return (
+              <div className="space-y-4 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${actorMeta.badgeClass}`}>
+                      Nivel {actorMeta.nivel} • {actorMeta.label}
+                    </span>
+                    <p className="text-slate-600 dark:text-slate-300 mt-1">
+                      Carreras adscritas:{' '}
+                      <strong className="text-slate-900 dark:text-slate-100">
+                        {scopeLabels.length > 0 ? scopeLabels.join(', ') : 'Ámbito Institucional (Todas las carreras)'}
+                      </strong>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Usuarios en niveles inferiores</p>
+                    <p className="text-xl font-bold text-emerald-800 dark:text-emerald-400">{subordinates.length}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+                  {downwardLevels.map(lvl => {
+                    const levelUsers = subordinates.filter(u => u.rol === lvl.code);
+                    if (levelUsers.length === 0) return null;
+
+                    return (
+                      <div key={lvl.code} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                        <div className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                          <span className="font-bold text-slate-800 dark:text-slate-100">
+                            Nivel {lvl.nivel} — {lvl.label}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                            {levelUsers.length} {levelUsers.length === 1 ? 'registro' : 'registros'}
+                          </span>
+                        </div>
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {levelUsers.map(sub => {
+                            const subCarrs = getUserCarreraIds(sub)
+                              .map(id => carreras.find(c => c.id === id)?.codigo)
+                              .filter(Boolean);
+                            const relAsesorias =
+                              sub.rol === 'alumno'
+                                ? asesorias.filter(a => a.alumnoId === sub.uid).length
+                                : asesorias.filter(a => a.docenteAsignadoId === sub.uid).length;
+                            return (
+                              <div key={sub.uid} className="px-3.5 py-2.5 flex items-center justify-between gap-2 bg-white dark:bg-slate-900">
+                                <div>
+                                  <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                    {sub.nombre} {sub.apellidoPaterno} {sub.apellidoMaterno}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                                    {sub.matricula || sub.numeroEmpleado || sub.correo}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap gap-1 justify-end">
+                                    {subCarrs.length > 0 ? (
+                                      subCarrs.map(code => (
+                                        <span
+                                          key={code}
+                                          className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-semibold text-slate-700 dark:text-slate-300"
+                                        >
+                                          {code}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400">Todas</span>
+                                    )}
+                                  </div>
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">
+                                    {relAsesorias} asesorías
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {subordinates.length === 0 && (
+                    <p className="text-center py-6 text-slate-400 dark:text-slate-500">
+                      No hay usuarios en niveles inferiores adscritos a estas carreras.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setTrackingUser(null)}
+                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </Modal>
       )}
 

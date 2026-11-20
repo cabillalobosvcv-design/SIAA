@@ -4,7 +4,7 @@ import { Asesoria, Modalidad } from '../../types/siaa';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
 import { AlertCircle, Calendar, Clock, DoorOpen, User, CheckCircle2 } from 'lucide-react';
-import { isTeachingRole, getRoleMeta } from '../../utils/roles';
+import { isTeachingRole, getRoleMeta, getUserCarreraIds, userHasCarrera } from '../../utils/roles';
 
 interface AsignacionModalProps {
   isOpen: boolean;
@@ -22,9 +22,17 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
   const { currentUser } = useAuth();
   const users = SIAADataService.getUsers();
   const aulas = SIAADataService.getAulas();
+  const carreras = SIAADataService.getCarreras();
 
-  // Teachers list (PTC Tutor, PA, Administrativo con Función Docente)
-  const teachers = users.filter(u => isTeachingRole(u.rol) && u.estado === 'activo');
+  // Teachers list (PTC Tutor, PA, Administrativo con Función Docente), prioritizing matching career
+  const teachers = users
+    .filter(u => isTeachingRole(u.rol) && u.estado === 'activo')
+    .sort((a, b) => {
+      if (!asesoria) return 0;
+      const aMatch = userHasCarrera(a, asesoria.carreraId) ? 0 : 1;
+      const bMatch = userHasCarrera(b, asesoria.carreraId) ? 0 : 1;
+      return aMatch - bMatch;
+    });
 
   const [selectedDocenteId, setSelectedDocenteId] = useState<string>('');
   const [fecha, setFecha] = useState<string>('');
@@ -164,11 +172,17 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
             onChange={(e) => setSelectedDocenteId(e.target.value)}
             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
           >
-            {teachers.map(t => (
-              <option key={t.uid} value={t.uid}>
-                {t.nombre} {t.apellidoPaterno} {t.apellidoMaterno} — {getRoleMeta(t.rol).shortLabel} ({t.correo})
-              </option>
-            ))}
+            {teachers.map(t => {
+              const codes = getUserCarreraIds(t)
+                .map(id => carreras.find(c => c.id === id)?.codigo)
+                .filter(Boolean)
+                .join(', ');
+              return (
+                <option key={t.uid} value={t.uid}>
+                  {t.nombre} {t.apellidoPaterno} {t.apellidoMaterno} — {getRoleMeta(t.rol).shortLabel}{codes ? ` [${codes}]` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 

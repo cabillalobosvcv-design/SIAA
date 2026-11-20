@@ -17,7 +17,9 @@ import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
   canAuthorizeOrAssign,
   canRegisterSeguimiento,
-  isTeachingRole
+  isTeachingRole,
+  getUserCarreraIds,
+  userHasCarrera
 } from '../../utils/roles';
 
 interface AsesoriasListProps {
@@ -53,13 +55,19 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   const teachers = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
 
   // Role filtering
+  const userCarreras = getUserCarreraIds(currentUser);
+  const availableCarreras =
+    (currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0
+      ? carreras.filter(c => userCarreras.includes(c.id))
+      : carreras;
+
   let displayList = asesorias;
   if (currentRole === 'alumno') {
     displayList = displayList.filter(a => a.alumnoId === currentUser?.uid);
   } else if (isTeachingRole(currentRole)) {
     displayList = displayList.filter(a => a.docenteAsignadoId === currentUser?.uid);
-  } else if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
-    displayList = displayList.filter(a => a.carreraId === currentUser.carreraId);
+  } else if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
+    displayList = displayList.filter(a => userHasCarrera(currentUser, a.carreraId));
   }
 
   // History view filtering: only completed/closed/cancelled
@@ -189,7 +197,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
             >
               <option value="all">Todas las Carreras</option>
-              {carreras.map(c => (
+              {availableCarreras.map(c => (
                 <option key={c.id} value={c.id}>{c.codigo}</option>
               ))}
             </select>

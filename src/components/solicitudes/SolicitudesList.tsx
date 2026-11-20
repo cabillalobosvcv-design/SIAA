@@ -19,7 +19,9 @@ import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
   canAuthorizeOrAssign,
   canCreateSolicitudForStudents,
-  isTeachingRole
+  isTeachingRole,
+  getUserCarreraIds,
+  userHasCarrera
 } from '../../utils/roles';
 
 interface SolicitudesListProps {
@@ -58,18 +60,19 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const asesorias = SIAADataService.getAsesorias();
 
   // Role based filtering
+  const userCarreras = getUserCarreraIds(currentUser);
   let displayList = asesorias;
   if (currentRole === 'alumno') {
     displayList = displayList.filter(a => a.alumnoId === currentUser?.uid);
-  } else if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
-    displayList = displayList.filter(a => a.carreraId === currentUser.carreraId);
+  } else if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
+    displayList = displayList.filter(a => userHasCarrera(currentUser, a.carreraId));
   } else if (isTeachingRole(currentRole)) {
     displayList = displayList.filter(
       a =>
         a.docenteAsignadoId === currentUser?.uid ||
         a.solicitanteId === currentUser?.uid ||
-        !currentUser?.carreraId ||
-        a.carreraId === currentUser.carreraId
+        userCarreras.length === 0 ||
+        userHasCarrera(currentUser, a.carreraId)
     );
   }
 

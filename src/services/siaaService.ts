@@ -30,7 +30,7 @@ import {
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { normalizeUserRole } from '../utils/roles';
+import { normalizeUserRole, getUserCarreraIds, userHasCarrera } from '../utils/roles';
 
 const STORAGE_KEYS = {
   USERS: 'siaa_users',
@@ -71,7 +71,17 @@ function setStored<T>(key: string, val: T): void {
 export class SIAADataService {
   // Read collections
   static getUsers(): User[] {
-    const users = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const normalizeUser = (u: User): User => {
+      const merged = getUserCarreraIds(u);
+      return {
+        ...u,
+        rol: normalizeUserRole(u.rol as string),
+        carreraId: merged[0] || undefined,
+        carrerasIds: merged
+      };
+    };
+
+    let users = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
     const migratedFlag = localStorage.getItem('siaa_roles_v2_migrated');
     if (!migratedFlag) {
       const upgraded: User[] = users.map(u => {
@@ -84,11 +94,24 @@ export class SIAADataService {
       if (jefeSeed && !upgraded.some(u => u.uid === jefeSeed.uid)) {
         upgraded.splice(2, 0, jefeSeed);
       }
-      setStored(STORAGE_KEYS.USERS, upgraded);
+      users = upgraded;
       localStorage.setItem('siaa_roles_v2_migrated', '1');
-      return upgraded;
     }
-    return users.map(u => ({ ...u, rol: normalizeUserRole(u.rol as string) }));
+
+    const multiCareerFlag = localStorage.getItem('siaa_multicarrera_v1');
+    if (!multiCareerFlag) {
+      users = users.map(u => {
+        if ((u.uid === 'user-doc-1' || u.uid === 'user-doc-5') && (!u.carrerasIds || u.carrerasIds.length <= 1)) {
+          return { ...u, carreraId: 'carr-1', carrerasIds: ['carr-1', 'carr-2'] };
+        }
+        return normalizeUser(u);
+      });
+      setStored(STORAGE_KEYS.USERS, users);
+      localStorage.setItem('siaa_multicarrera_v1', '1');
+      return users;
+    }
+
+    return users.map(normalizeUser);
   }
 
   static getCarreras(): Carrera[] {
@@ -297,14 +320,16 @@ export class SIAADataService {
     const list = this.getAsesorias();
     setStored(STORAGE_KEYS.ASESORIAS, [newAsesoria, ...list]);
 
-    // Send notifications to administrators, academic directors, and career heads
+    // Send notifications to administrators, academic directors, and career heads matching the career
     const users = this.getUsers();
-    const managers = users.filter(
-      u =>
-        u.rol === 'admin' ||
-        u.rol === 'director' ||
-        (u.rol === 'jefe_carrera' && (!u.carreraId || u.carreraId === params.carreraId))
-    );
+    const managers = users.filter(u => {
+      if (u.rol === 'admin') return true;
+      if (u.rol === 'director' || u.rol === 'jefe_carrera') {
+        const assigned = getUserCarreraIds(u);
+        return assigned.length === 0 || userHasCarrera(u, params.carreraId);
+      }
+      return false;
+    });
     managers.forEach(u => {
       this.sendNotification({
         userId: u.uid,
@@ -728,8 +753,11 @@ export class SIAADataService {
     const pad = (n: number) => n.toString().padStart(2, '0');
     const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
 
+    const normalizedCarreras = getUserCarreraIds(userData);
     const newUser: User = {
       ...userData,
+      carreraId: normalizedCarreras[0] || undefined,
+      carrerasIds: normalizedCarreras,
       uid: `user-${Date.now()}`,
       fechaCreacion: today,
       fechaActualizacion: today
@@ -760,12 +788,23 @@ export class SIAADataService {
     const pad = (n: number) => n.toString().padStart(2, '0');
     const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
 
-    const updatedUser: User = {
+    const mergedUser: User = {
       ...list[idx],
       ...updates,
       fechaActualizacion: today
     };
-    list[idx] = updatedUser;
+
+    if ('carrerasIds' in updates || 'carreraId' in updates) {
+      const normalizedCarreras = Array.isArray(updates.carrerasIds)
+        ? Array.from(new Set(updates.carrerasIds.filter(Boolean)))
+        : updates.carreraId
+        ? [updates.carreraId]
+        : [];
+      mergedUser.carrerasIds = normalizedCarreras;
+      mergedUser.carreraId = normalizedCarreras[0] || undefined;
+    }
+
+    list[idx] = mergedUser;
     setStored(STORAGE_KEYS.USERS, list);
 
     this.logAudit({
@@ -774,11 +813,11 @@ export class SIAADataService {
       rol: actor.rol,
       accion: 'USUARIO_ACTUALIZADO',
       modulo: 'Usuarios',
-      documentoAfectado: updatedUser.correo,
-      detalles: `Actualización de campos en usuario: ${updatedUser.nombre} ${updatedUser.apellidoPaterno}`
+      documentoAfectado: mergedUser.correo,
+      detalles: `Actualización de campos en usuario: ${mergedUser.nombre} ${mergedUser.apellidoPaterno}`
     });
 
-    return updatedUser;
+    return mergedUser;
   }
 
   static resetPassword(uid: string, _newPass: string, actor: User): void {

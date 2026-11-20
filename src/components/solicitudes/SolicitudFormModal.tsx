@@ -169,11 +169,14 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
               onChange={(e) => setSelectedAlumnoId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
             >
-              {users.filter(u => u.rol === 'alumno' && u.estado === 'activo').map(alu => (
-                <option key={alu.uid} value={alu.uid}>
-                  {alu.nombre} {alu.apellidoPaterno} ({alu.matricula})
-                </option>
-              ))}
+              {users.filter(u => u.rol === 'alumno' && u.estado === 'activo').map(alu => {
+                const carr = carreras.find(c => c.id === alu.carreraId);
+                return (
+                  <option key={alu.uid} value={alu.uid}>
+                    {alu.nombre} {alu.apellidoPaterno} ({alu.matricula}{carr ? ` • ${carr.codigo}` : ''})
+                  </option>
+                );
+              })}
             </select>
           </div>
         ) : (

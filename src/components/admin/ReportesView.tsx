@@ -15,7 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { isTeachingRole } from '../../utils/roles';
+import { isTeachingRole, getUserCarreraIds, userHasCarrera } from '../../utils/roles';
 
 export const ReportesView: React.FC = () => {
   const { currentUser, currentRole } = useAuth();
@@ -23,9 +23,14 @@ export const ReportesView: React.FC = () => {
   const carreras = SIAADataService.getCarreras();
   const cuatrimestres = SIAADataService.getCuatrimestres();
   const docentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
+  const userCarreras = getUserCarreraIds(currentUser);
+  const availableCarreras =
+    (currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0
+      ? carreras.filter(c => userCarreras.includes(c.id))
+      : carreras;
 
   const [selectedCarrera, setSelectedCarrera] = useState<string>(
-    currentRole === 'jefe_carrera' && currentUser?.carreraId ? currentUser.carreraId : 'all'
+    currentRole === 'jefe_carrera' && userCarreras.length === 1 ? userCarreras[0] : 'all'
   );
   const [selectedCuatrimestre, setSelectedCuatrimestre] = useState<string>('all');
   const [selectedDocente, setSelectedDocente] = useState<string>('all');
@@ -34,6 +39,8 @@ export const ReportesView: React.FC = () => {
   let filtered = asesorias;
   if (selectedCarrera !== 'all') {
     filtered = filtered.filter(a => a.carreraId === selectedCarrera);
+  } else if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
+    filtered = filtered.filter(a => userHasCarrera(currentUser, a.carreraId));
   }
   if (selectedCuatrimestre !== 'all') {
     filtered = filtered.filter(a => a.cuatrimestreId === selectedCuatrimestre);
@@ -145,8 +152,10 @@ export const ReportesView: React.FC = () => {
               onChange={(e) => setSelectedCarrera(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
             >
-              <option value="all">Todas las Carreras</option>
-              {carreras.map(c => (
+              <option value="all">
+                {userCarreras.length > 0 ? 'Todas mis Carreras Adscritas' : 'Todas las Carreras'}
+              </option>
+              {availableCarreras.map(c => (
                 <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
               ))}
             </select>

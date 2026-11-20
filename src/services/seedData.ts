@@ -106,6 +106,7 @@ export const INITIAL_USERS: User[] = [
     telefono: '55-6123-4500',
     rol: 'jefe_carrera',
     carreraId: 'carr-1',
+    carrerasIds: ['carr-1'],
     estado: 'activo',
     fechaCreacion: '2025-01-12',
     fechaActualizacion: '2026-01-15'
@@ -120,6 +121,7 @@ export const INITIAL_USERS: User[] = [
     telefono: '55-5555-1234',
     rol: 'jefe_carrera',
     carreraId: 'carr-2',
+    carrerasIds: ['carr-2'],
     estado: 'activo',
     fechaCreacion: '2025-01-12',
     fechaActualizacion: '2026-01-15'
@@ -135,6 +137,7 @@ export const INITIAL_USERS: User[] = [
     telefono: '55-3344-5566',
     rol: 'ptc_tutor',
     carreraId: 'carr-1',
+    carrerasIds: ['carr-1', 'carr-2'],
     estado: 'activo',
     fechaCreacion: '2025-02-01',
     fechaActualizacion: '2026-02-10'
@@ -149,6 +152,7 @@ export const INITIAL_USERS: User[] = [
     telefono: '55-4455-6677',
     rol: 'ptc_tutor',
     carreraId: 'carr-1',
+    carrerasIds: ['carr-1'],
     estado: 'activo',
     fechaCreacion: '2025-02-01',
     fechaActualizacion: '2026-02-10'
@@ -164,6 +168,7 @@ export const INITIAL_USERS: User[] = [
     telefono: '55-6677-8899',
     rol: 'pa',
     carreraId: 'carr-2',
+    carrerasIds: ['carr-2'],
     estado: 'activo',
     fechaCreacion: '2025-02-01',
     fechaActualizacion: '2026-02-10'
@@ -178,6 +183,7 @@ export const INITIAL_USERS: User[] = [
     telefono: '55-7788-9900',
     rol: 'pa',
     carreraId: 'carr-2',
+    carrerasIds: ['carr-2'],
     estado: 'activo',
     fechaCreacion: '2025-02-01',
     fechaActualizacion: '2026-02-10'
@@ -193,6 +199,7 @@ export const INITIAL_USERS: User[] = [
     telefono: '55-8899-0011',
     rol: 'administrativo_docente',
     carreraId: 'carr-1',
+    carrerasIds: ['carr-1', 'carr-2'],
     estado: 'activo',
     fechaCreacion: '2025-02-01',
     fechaActualizacion: '2026-02-10'

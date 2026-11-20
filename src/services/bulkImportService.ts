@@ -13,7 +13,7 @@ import {
   UserRole,
   UserStatus
 } from '../types/siaa';
-import { isTeachingRole, normalizeUserRole } from '../utils/roles';
+import { isTeachingRole, normalizeUserRole, getUserCarreraIds } from '../utils/roles';
 
 export type BulkEntityType =
   | 'usuarios'
@@ -148,11 +148,11 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
       },
       {
         key: 'carreraCodigo',
-        label: 'Código de Carrera',
+        label: 'Código(s) de Carrera',
         required: false,
-        type: 'Código',
-        example: 'ITIDS',
-        description: 'Código de carrera existente (ej. ITIDS, IIGP).'
+        type: 'Código(s)',
+        example: 'ITIDS, IIGP',
+        description: 'Uno o varios códigos de carrera existentes separados por coma (ej. ITIDS o ITIDS, IIGP).'
       },
       {
         key: 'grupoNombre',
@@ -204,7 +204,7 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
         matricula: '',
         numeroEmpleado: 'PTC-206',
         telefono: '55-9870-1122',
-        carreraCodigo: 'ITIDS',
+        carreraCodigo: 'ITIDS, IIGP',
         grupoNombre: '',
         cuatrimestreNumero: '',
         estado: 'activo'
@@ -711,7 +711,10 @@ function getCurrentExportRows(type: BulkEntityType): Record<string, string | num
   switch (type) {
     case 'usuarios':
       return users.map(u => {
-        const carr = carreras.find(c => c.id === u.carreraId);
+        const carreraCodes = getUserCarreraIds(u)
+          .map(cid => carreras.find(c => c.id === cid)?.codigo)
+          .filter(Boolean)
+          .join(', ');
         const grup = grupos.find(g => g.id === u.grupoId);
         const cuat = cuatrimestres.find(cu => cu.id === u.cuatrimestreId);
         return {
@@ -723,7 +726,7 @@ function getCurrentExportRows(type: BulkEntityType): Record<string, string | num
           matricula: u.matricula || '',
           numeroEmpleado: u.numeroEmpleado || '',
           telefono: u.telefono || '',
-          carreraCodigo: carr?.codigo || '',
+          carreraCodigo: carreraCodes,
           grupoNombre: grup?.nombre || '',
           cuatrimestreNumero: cuat?.numero ?? '',
           estado: u.estado
@@ -994,8 +997,14 @@ export async function parseAndValidateBulkFile(type: BulkEntityType, file: File)
       if (!estado) errors.push('Estado inválido (use: activo o inactivo)');
 
       if (rowData.carreraCodigo) {
-        const carrMatch = existingCarreras.find(c => c.codigo.toUpperCase() === rowData.carreraCodigo.toUpperCase());
-        if (!carrMatch) errors.push(`Carrera "${rowData.carreraCodigo}" no existe`);
+        const codes = rowData.carreraCodigo
+          .split(/[,;|]+/)
+          .map(c => c.trim().toUpperCase())
+          .filter(Boolean);
+        codes.forEach(code => {
+          const carrMatch = existingCarreras.find(c => c.codigo.toUpperCase() === code);
+          if (!carrMatch) errors.push(`Carrera "${code}" no existe`);
+        });
       }
       if (rowData.grupoNombre) {
         const grupMatch = existingGrupos.find(g => g.nombre.toLowerCase() === rowData.grupoNombre.toLowerCase());
@@ -1162,9 +1171,18 @@ export function applyBulkImport(
       const correo = d.correo.toLowerCase();
       const rol: UserRole = normalizeUserRole(d.rol);
       const estado = normalizeEstado(d.estado) || 'activo';
-      const carr = d.carreraCodigo
-        ? carreras.find(c => c.codigo.toUpperCase() === d.carreraCodigo.toUpperCase())
-        : undefined;
+      const parsedCarreraIds = d.carreraCodigo
+        ? Array.from(
+            new Set(
+              d.carreraCodigo
+                .split(/[,;|]+/)
+                .map(code => code.trim().toUpperCase())
+                .filter(Boolean)
+                .map(code => carreras.find(c => c.codigo.toUpperCase() === code)?.id)
+                .filter((id): id is string => Boolean(id))
+            )
+          )
+        : [];
       const grup = d.grupoNombre
         ? grupos.find(g => g.nombre.toLowerCase() === d.grupoNombre.toLowerCase())
         : undefined;
@@ -1178,6 +1196,10 @@ export function applyBulkImport(
           skipped++;
           return;
         }
+        const prevIds = getUserCarreraIds(list[existingIdx]);
+        const nextIds = parsedCarreraIds.length > 0
+          ? (rol === 'alumno' ? [parsedCarreraIds[0]] : parsedCarreraIds)
+          : prevIds;
         list[existingIdx] = {
           ...list[existingIdx],
           nombre: d.nombre,
@@ -1187,7 +1209,8 @@ export function applyBulkImport(
           matricula: rol === 'alumno' ? d.matricula || list[existingIdx].matricula : undefined,
           numeroEmpleado: rol !== 'alumno' ? d.numeroEmpleado || list[existingIdx].numeroEmpleado : undefined,
           telefono: d.telefono || list[existingIdx].telefono,
-          carreraId: carr?.id ?? list[existingIdx].carreraId,
+          carreraId: nextIds[0],
+          carrerasIds: nextIds,
           grupoId: rol === 'alumno' ? grup?.id ?? list[existingIdx].grupoId : undefined,
           cuatrimestreId: rol === 'alumno' ? cuat?.id ?? list[existingIdx].cuatrimestreId : undefined,
           estado,
@@ -1195,6 +1218,7 @@ export function applyBulkImport(
         };
         updated++;
       } else {
+        const nextIds = rol === 'alumno' ? (parsedCarreraIds[0] ? [parsedCarreraIds[0]] : []) : parsedCarreraIds;
         const newUser: User = {
           uid: `user-bulk-${Date.now()}-${idx}`,
           nombre: d.nombre,
@@ -1205,7 +1229,8 @@ export function applyBulkImport(
           matricula: rol === 'alumno' ? d.matricula || undefined : undefined,
           numeroEmpleado: rol !== 'alumno' ? d.numeroEmpleado || undefined : undefined,
           telefono: d.telefono || undefined,
-          carreraId: carr?.id,
+          carreraId: nextIds[0],
+          carrerasIds: nextIds,
           grupoId: rol === 'alumno' ? grup?.id : undefined,
           cuatrimestreId: rol === 'alumno' ? cuat?.id : undefined,
           estado,
