@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { SIAADataService } from '../../services/siaaService';
 import { UserRole } from '../../types/siaa';
+import { ThemeToggleButton } from '../common/ThemeToggleButton';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -96,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-emerald-900 border-b-2 border-amber-500 shadow-md text-white">
+    <header className="sticky top-0 z-40 bg-emerald-900 dark:bg-emerald-950 border-b-2 border-amber-500 shadow-md text-white transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           
@@ -152,14 +153,14 @@ export const Header: React.FC<HeaderProps> = ({
 
               {showRoleMenu && (
                 <div
-                  className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 py-2 text-slate-800 z-50 animate-fadeIn"
+                  className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 text-slate-800 dark:text-slate-100 z-50 animate-fadeIn"
                   onClick={() => setShowRoleMenu(false)}
                 >
-                  <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/70">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Cambio Rápido de Cuenta para Pruebas
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       Explora el sistema con cualquiera de los 4 roles
                     </p>
                   </div>
@@ -169,11 +170,13 @@ export const Header: React.FC<HeaderProps> = ({
                         key={demo.uid}
                         type="button"
                         onClick={() => switchUser(demo.uid)}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 flex items-start gap-2.5 transition-colors ${
-                          currentUser?.uid === demo.uid ? 'bg-emerald-50/80 font-semibold text-emerald-900' : 'text-slate-700'
+                        className={`w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-950/60 flex items-start gap-2.5 transition-colors ${
+                          currentUser?.uid === demo.uid
+                            ? 'bg-emerald-50/80 dark:bg-emerald-950/70 font-semibold text-emerald-900 dark:text-emerald-300'
+                            : 'text-slate-700 dark:text-slate-200'
                         }`}
                       >
-                        <div className="p-1.5 rounded-md bg-emerald-100 text-emerald-800 mt-0.5 shrink-0">
+                        <div className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-300 mt-0.5 shrink-0">
                           {demo.role === 'admin' && <Shield className="w-3.5 h-3.5" />}
                           {demo.role === 'director' && <GraduationCap className="w-3.5 h-3.5" />}
                           {demo.role === 'docente' && <BookOpen className="w-3.5 h-3.5" />}
@@ -181,8 +184,8 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="truncate">
                           <p className="font-semibold truncate">{demo.name}</p>
-                          <p className="text-[11px] text-amber-700 font-medium">{demo.roleName}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{demo.email}</p>
+                          <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">{demo.roleName}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{demo.email}</p>
                         </div>
                       </button>
                     ))}
@@ -190,6 +193,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Light / Dark Theme Toggle */}
+            <ThemeToggleButton variant="header" />
 
             {/* Notifications Dropdown */}
             <div className="relative">
@@ -208,26 +214,26 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
 
               {showNotifMenu && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-slate-200 py-2 text-slate-800 z-50 animate-fadeIn">
-                  <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 text-slate-800 dark:text-slate-100 z-50 animate-fadeIn">
+                  <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900">Notificaciones</h4>
-                      <p className="text-xs text-slate-500">{unreadCount} no leídas</p>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Notificaciones</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{unreadCount} no leídas</p>
                     </div>
                     {unreadCount > 0 && (
                       <button
                         type="button"
                         onClick={handleMarkAllRead}
-                        className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1"
+                        className="text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-medium flex items-center gap-1"
                       >
                         <CheckCheck className="w-3.5 h-3.5" />
                         Marcar todas leídas
                       </button>
                     )}
                   </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                     {notifications.length === 0 ? (
-                      <div className="py-6 text-center text-xs text-slate-400">
+                      <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
                         No hay notificaciones para mostrar
                       </div>
                     ) : (
@@ -235,7 +241,9 @@ export const Header: React.FC<HeaderProps> = ({
                         <div
                           key={notif.id}
                           className={`p-3 text-xs transition-colors cursor-pointer ${
-                            !notif.leida ? 'bg-emerald-50/60 font-medium' : 'hover:bg-slate-50'
+                            !notif.leida
+                              ? 'bg-emerald-50/60 dark:bg-emerald-950/50 font-medium'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                           }`}
                           onClick={() => {
                             SIAADataService.markNotificationAsRead(notif.id);
@@ -246,23 +254,23 @@ export const Header: React.FC<HeaderProps> = ({
                           }}
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-semibold text-emerald-900">{notif.titulo}</span>
-                            <span className="text-[10px] text-slate-400">{notif.fechaCreacion.split(' ')[0]}</span>
+                            <span className="font-semibold text-emerald-900 dark:text-emerald-300">{notif.titulo}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{notif.fechaCreacion.split(' ')[0]}</span>
                           </div>
-                          <p className="text-slate-600 line-clamp-2">{notif.mensaje}</p>
+                          <p className="text-slate-600 dark:text-slate-300 line-clamp-2">{notif.mensaje}</p>
                         </div>
                       ))
                     )}
                   </div>
                   {onNavigateToNotifications && (
-                    <div className="px-3 pt-2 border-t border-slate-100 text-center">
+                    <div className="px-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
                       <button
                         type="button"
                         onClick={() => {
                           setShowNotifMenu(false);
                           onNavigateToNotifications();
                         }}
-                        className="text-xs text-emerald-700 hover:underline font-semibold"
+                        className="text-xs text-emerald-700 dark:text-emerald-400 hover:underline font-semibold"
                       >
                         Ver todas las notificaciones
                       </button>

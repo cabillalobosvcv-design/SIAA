@@ -29,26 +29,26 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <div
           className={`p-3 rounded-full shrink-0 ${
             variant === 'danger'
-              ? 'bg-rose-100 text-rose-600'
+              ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
               : variant === 'warning'
-              ? 'bg-amber-100 text-amber-700'
-              : 'bg-emerald-100 text-emerald-700'
+              ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400'
+              : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
           }`}
         >
           {variant === 'danger' ? <AlertTriangle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
         </div>
         <div className="space-y-2">
-          <p className="text-sm text-slate-600 leading-relaxed">
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
             {message}
           </p>
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+      <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+          className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
         >
           {cancelLabel}
         </button>

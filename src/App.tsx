@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavView } from './components/layout/Sidebar';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -59,7 +60,7 @@ function SIAAApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800 antialiased">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col font-sans text-slate-800 dark:text-slate-100 antialiased transition-colors duration-200">
       {/* Institutional Top Navigation Header */}
       <Header
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -201,8 +202,10 @@ function SIAAApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SIAAApp />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <SIAAApp />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

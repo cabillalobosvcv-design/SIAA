@@ -17,6 +17,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { SIAADataService } from '../../services/siaaService';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
 import { Asesoria, UserRole } from '../../types/siaa';
@@ -46,11 +47,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenSolicitudModal
 }) => {
   const { currentUser, currentRole } = useAuth();
+  const { isDark } = useTheme();
   const asesorias = SIAADataService.getAsesorias();
   const users = SIAADataService.getUsers();
   const materias = SIAADataService.getMaterias();
   const carreras = SIAADataService.getCarreras();
   const aulas = SIAADataService.getAulas();
+
+  const chartGridColor = isDark ? '#334155' : '#e2e8f0';
+  const chartTickColor = isDark ? '#94a3b8' : '#475569';
+  const chartTooltipStyle = {
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    borderRadius: '8px',
+    fontSize: '12px',
+    border: isDark ? '1px solid #334155' : '1px solid #cbd5e1',
+    color: isDark ? '#f1f5f9' : '#0f172a'
+  };
 
   // Filters for Director Dashboard
   const [selectedCarrera, setSelectedCarrera] = useState<string>('all');
@@ -108,42 +120,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Counter KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Solicitudes Pendientes</p>
-              <p className="text-2xl font-bold text-amber-600 mt-1">{pendientes.length}</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Solicitudes Pendientes</p>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendientes.length}</p>
             </div>
-            <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400">
               <AlertCircle className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Asesorías Próximas</p>
-              <p className="text-2xl font-bold text-teal-700 mt-1">{proximas.length}</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Próximas</p>
+              <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{proximas.length}</p>
             </div>
-            <div className="p-3 bg-teal-50 rounded-xl text-teal-700">
+            <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-teal-700 dark:text-teal-400">
               <Calendar className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Asesorías Realizadas</p>
-              <p className="text-2xl font-bold text-emerald-800 mt-1">{realizadas.length}</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Realizadas</p>
+              <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas.length}</p>
             </div>
-            <div className="p-3 bg-emerald-50 rounded-xl text-emerald-800">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-800 dark:text-emerald-400">
               <CheckCircle2 className="w-6 h-6" />
             </div>
           </div>
         </div>
 
         {/* Próxima Asesoría Destacada */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-800" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-emerald-800 dark:text-emerald-400" />
               Próxima Asesoría Programada
             </h2>
             {proximaAsesoria && (
@@ -155,39 +167,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {proximaAsesoria ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                    <span className="text-xs text-slate-400 font-semibold uppercase block">Materia</span>
-                    <p className="text-sm font-bold text-slate-800 mt-1">{proximaAsesoria.materiaNombre}</p>
-                    <p className="text-xs text-slate-500 font-mono">{proximaAsesoria.materiaCodigo}</p>
+                  <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Materia</span>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.materiaNombre}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">{proximaAsesoria.materiaCodigo}</p>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                    <span className="text-xs text-slate-400 font-semibold uppercase block">Docente Asesor</span>
-                    <p className="text-sm font-bold text-slate-800 mt-1">{proximaAsesoria.docenteAsignadoNombre || 'Por asignar'}</p>
-                    <p className="text-xs text-emerald-700 font-medium">Asesor Especialista</p>
+                  <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Docente Asesor</span>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.docenteAsignadoNombre || 'Por asignar'}</p>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Asesor Especialista</p>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                    <span className="text-xs text-slate-400 font-semibold uppercase block">Fecha y Horario</span>
-                    <p className="text-sm font-bold text-slate-800 mt-1">{proximaAsesoria.fechaProgramada || 'Pendiente'}</p>
-                    <p className="text-xs text-slate-600">{proximaAsesoria.horaInicio} - {proximaAsesoria.horaTermino} hrs</p>
+                  <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Fecha y Horario</span>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.fechaProgramada || 'Pendiente'}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">{proximaAsesoria.horaInicio} - {proximaAsesoria.horaTermino} hrs</p>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                    <span className="text-xs text-slate-400 font-semibold uppercase block">Lugar / Modalidad</span>
-                    <p className="text-sm font-bold text-slate-800 mt-1">{proximaAsesoria.aulaNombre || 'Aula asignada'}</p>
-                    <p className="text-xs text-slate-500 capitalize">{proximaAsesoria.modalidad || 'Presencial'}</p>
+                  <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Lugar / Modalidad</span>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.aulaNombre || 'Aula asignada'}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{proximaAsesoria.modalidad || 'Presencial'}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                  <p className="text-xs text-slate-500">
-                    <span className="font-semibold text-slate-700">Temas a trabajar:</span> {proximaAsesoria.temasDificultad}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">Temas a trabajar:</span> {proximaAsesoria.temasDificultad}
                   </p>
                   <button
                     type="button"
                     onClick={() => onSelectAdvisory(proximaAsesoria.id)}
-                    className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 flex items-center gap-1 hover:underline"
+                    className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300 flex items-center gap-1 hover:underline"
                   >
                     Ver detalle completo
                     <ChevronRight className="w-4 h-4" />
@@ -196,11 +208,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center mx-auto mb-3">
                   <Calendar className="w-6 h-6" />
                 </div>
-                <h3 className="text-sm font-semibold text-slate-700">No tienes asesorías próximas confirmadas</h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">No tienes asesorías próximas confirmadas</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
                   Si presentas dificultades en alguna materia de tu cuatrimestre, puedes generar una nueva solicitud de asesoría en cualquier momento.
                 </p>
                 <button
@@ -217,20 +229,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Recent History Table Preview */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">Historial Reciente de Asesorías</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Historial Reciente de Asesorías</h2>
             <button
               type="button"
               onClick={() => onNavigate('historial')}
-              className="text-xs font-semibold text-emerald-800 hover:underline"
+              className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:underline"
             >
               Ver todo el historial
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="px-4 py-3">Folio</th>
                   <th className="px-4 py-3">Materia</th>
@@ -240,26 +252,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <th className="px-4 py-3 text-right">Acción</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {misAsesorias.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                    <td colSpan={6} className="px-4 py-6 text-center text-slate-400 dark:text-slate-500">
                       No has solicitado ninguna asesoría hasta el momento.
                     </td>
                   </tr>
                 ) : (
                   misAsesorias.slice(0, 5).map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-800">{item.folio}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{item.materiaNombre}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.docenteAsignadoNombre || 'Por asignar'}</td>
-                      <td className="px-4 py-3 text-slate-500">{item.fechaProgramada || item.fechaSolicitud}</td>
+                    <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-4 py-3 font-mono font-semibold text-slate-800 dark:text-emerald-300">{item.folio}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{item.materiaNombre}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{item.docenteAsignadoNombre || 'Por asignar'}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{item.fechaProgramada || item.fechaSolicitud}</td>
                       <td className="px-4 py-3"><StatusBadge estado={item.estado} /></td>
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
                           onClick={() => onSelectAdvisory(item.id)}
-                          className="text-emerald-800 font-semibold hover:underline"
+                          className="text-emerald-800 dark:text-emerald-400 font-semibold hover:underline"
                         >
                           Ver ficha
                         </button>
@@ -289,15 +301,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return (
       <div className="space-y-6 animate-fadeIn">
         {/* Header Hero */}
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
               Panel del Docente Asesor
             </span>
-            <h1 className="text-2xl font-bold text-slate-900 mt-2 font-serif">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 font-serif">
               {currentUser?.nombre} {currentUser?.apellidoPaterno}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               No. Empleado: <span className="font-mono font-medium">{currentUser?.numeroEmpleado}</span> | {currentUser?.correo}
             </p>
           </div>
@@ -313,9 +325,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <button
               type="button"
               onClick={() => onNavigate('calendario')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors"
             >
-              <Calendar className="w-4 h-4 text-slate-500" />
+              <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
               Mi Calendario
             </button>
           </div>
@@ -323,35 +335,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Counter KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Asesorías de Hoy</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Asesorías de Hoy</p>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-amber-700">{hoy.length}</span>
-              <span className="p-2.5 bg-amber-50 rounded-lg text-amber-700"><Clock className="w-5 h-5" /></span>
+              <span className="text-2xl font-bold text-amber-700 dark:text-amber-400">{hoy.length}</span>
+              <span className="p-2.5 bg-amber-50 dark:bg-amber-950/60 rounded-lg text-amber-700 dark:text-amber-400"><Clock className="w-5 h-5" /></span>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Próximas Sesiones</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Próximas Sesiones</p>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-teal-700">{proximas.length}</span>
-              <span className="p-2.5 bg-teal-50 rounded-lg text-teal-700"><Calendar className="w-5 h-5" /></span>
+              <span className="text-2xl font-bold text-teal-700 dark:text-teal-400">{proximas.length}</span>
+              <span className="p-2.5 bg-teal-50 dark:bg-teal-950/60 rounded-lg text-teal-700 dark:text-teal-400"><Calendar className="w-5 h-5" /></span>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Asesorías Realizadas</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Asesorías Realizadas</p>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-emerald-800">{realizadas.length}</span>
-              <span className="p-2.5 bg-emerald-50 rounded-lg text-emerald-800"><CheckCircle2 className="w-5 h-5" /></span>
+              <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{realizadas.length}</span>
+              <span className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg text-emerald-800 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /></span>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Horarios Registrados</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Horarios Registrados</p>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-slate-800">{dispRecurrentes.length}</span>
-              <span className="p-2.5 bg-slate-100 rounded-lg text-slate-700"><Layers className="w-5 h-5" /></span>
+              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{dispRecurrentes.length}</span>
+              <span className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300"><Layers className="w-5 h-5" /></span>
             </div>
           </div>
         </div>
@@ -359,32 +371,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Asesorías de hoy / próximas list */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Hoy & Urgentes */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-amber-600" />
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 Asesorías de Hoy / En Curso
               </h2>
-              <span className="text-xs text-slate-400 font-medium">Fecha: {todayStr}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Fecha: {todayStr}</span>
             </div>
 
             {hoy.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+              <div className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
                 No tienes sesiones de asesoría programadas para el día de hoy.
               </div>
             ) : (
               <div className="space-y-3">
                 {hoy.map(item => (
-                  <div key={item.id} className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors flex items-center justify-between">
+                  <div key={item.id} className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-emerald-900">{item.folio}</span>
-                        <span className="text-xs font-bold text-slate-800">{item.materiaNombre}</span>
+                        <span className="font-mono text-xs font-bold text-emerald-900 dark:text-emerald-300">{item.folio}</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{item.materiaNombre}</span>
                       </div>
-                      <p className="text-xs text-slate-600 mt-1">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
                         Alumno: <span className="font-semibold">{item.alumnoNombre}</span> ({item.matricula})
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         {item.horaInicio} - {item.horaTermino} hrs | Aula: {item.aulaNombre}
                       </p>
                     </div>
@@ -402,39 +414,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Próximas Asignadas */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-teal-700" />
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-teal-700 dark:text-teal-400" />
                 Próximas Sesiones Asignadas
               </h2>
               <button
                 type="button"
                 onClick={() => onNavigate('asesorias')}
-                className="text-xs text-emerald-800 font-semibold hover:underline"
+                className="text-xs text-emerald-800 dark:text-emerald-400 font-semibold hover:underline"
               >
                 Ver todas
               </button>
             </div>
 
             {proximas.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+              <div className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
                 No hay asesorías próximas programadas en tu agenda.
               </div>
             ) : (
               <div className="space-y-3">
                 {proximas.slice(0, 4).map(item => (
-                  <div key={item.id} className="p-3 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors flex items-center justify-between">
+                  <div key={item.id} className="p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-bold text-slate-800">{item.materiaNombre}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{item.materiaNombre}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {item.alumnoNombre} • {item.fechaProgramada} ({item.horaInicio} - {item.horaTermino})
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => onSelectAdvisory(item.id)}
-                      className="text-xs text-emerald-800 font-semibold hover:underline"
+                      className="text-xs text-emerald-800 dark:text-emerald-400 font-semibold hover:underline"
                     >
                       Ver Ficha
                     </button>
@@ -486,15 +498,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return (
       <div className="space-y-6 animate-fadeIn">
         {/* Header with Period & Career Filters */}
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
               Dirección de Asuntos Académicos
             </span>
-            <h1 className="text-2xl font-bold text-slate-900 mt-2 font-serif">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 font-serif">
               Indicadores Académicos y Cumplimiento
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Supervisión de rezago pedagógico, asesorías preventivas y desempeño institucional.
             </p>
           </div>
@@ -503,7 +515,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <select
               value={selectedCarrera}
               onChange={(e) => setSelectedCarrera(e.target.value)}
-              className="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:ring-2 focus:ring-emerald-700"
+              className="text-xs font-semibold px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-emerald-700"
             >
               <option value="all">Todas las Carreras</option>
               {carreras.map(c => (
@@ -524,51 +536,51 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Executive Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Alumnos Registrados</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{totalAlumnos}</p>
-            <p className="text-[11px] text-emerald-700 mt-1 font-medium">Padrón activo</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Alumnos Registrados</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalAlumnos}</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Padrón activo</p>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Docentes Asesores</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{totalDocentes}</p>
-            <p className="text-[11px] text-emerald-700 mt-1 font-medium">Claustro académico</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Docentes Asesores</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalDocentes}</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Claustro académico</p>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Pendientes Revisión</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{pendientes.length}</p>
-            <p className="text-[11px] text-amber-700 mt-1 font-medium">Por autorizar</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pendientes Revisión</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendientes.length}</p>
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 font-medium">Por autorizar</p>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Aprobadas / Agendadas</p>
-            <p className="text-2xl font-bold text-teal-700 mt-1">{aprobadas.length}</p>
-            <p className="text-[11px] text-teal-700 mt-1 font-medium">En proceso de atención</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Aprobadas / Agendadas</p>
+            <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{aprobadas.length}</p>
+            <p className="text-[11px] text-teal-700 dark:text-teal-400 mt-1 font-medium">En proceso de atención</p>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 uppercase">Realizadas y Cerradas</p>
-            <p className="text-2xl font-bold text-emerald-800 mt-1">{realizadas.length}</p>
-            <p className="text-[11px] text-emerald-700 mt-1 font-medium">Con seguimiento formal</p>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Realizadas y Cerradas</p>
+            <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas.length}</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Con seguimiento formal</p>
           </div>
         </div>
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Materias con mayor demanda */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
-            <h2 className="text-base font-bold text-slate-900 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6">
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">
               Materias con Mayor Demanda de Asesoría
             </h2>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dataMaterias} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', fontSize: '12px', border: '1px solid #cbd5e1' }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: chartTickColor }} angle={-25} textAnchor="end" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: chartTickColor }} />
+                  <Tooltip contentStyle={chartTooltipStyle} />
                   <Bar dataKey="total" fill="#0f766e" radius={[4, 4, 0, 0]} name="Asesorías" />
                 </BarChart>
               </ResponsiveContainer>
@@ -576,8 +588,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Estado de las asesorías */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
-            <h2 className="text-base font-bold text-slate-900 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6">
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">
               Distribución por Estado de Solicitudes
             </h2>
             <div className="h-64 w-full flex items-center justify-center">
@@ -598,8 +610,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', fontSize: '12px' }} />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                  <Tooltip contentStyle={chartTooltipStyle} />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: chartTickColor }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -645,15 +657,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Admin Title & Quick Navigation Shortcuts */}
-      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 uppercase tracking-wider">
+          <span className="text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800 uppercase tracking-wider">
             Administración General del Sistema
           </span>
-          <h1 className="text-2xl font-bold text-slate-900 mt-2 font-serif">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 font-serif">
             Panel de Control Institucional
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Gestión integral de usuarios, catálogos, horarios, asesorías e indicadores universitarios.
           </p>
         </div>
@@ -663,25 +675,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigate('usuarios')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors"
           >
-            <Users className="w-3.5 h-3.5 text-slate-500" />
+            <Users className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             Crear Usuario
           </button>
           <button
             type="button"
             onClick={() => onNavigate('materias')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors"
           >
-            <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+            <BookOpen className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             Crear Materia
           </button>
           <button
             type="button"
             onClick={() => onNavigate('disponibilidad')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors"
           >
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
+            <Clock className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             Registrar Disponibilidad
           </button>
           <button
@@ -697,56 +709,56 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Metrics Cards (Requirement 21 & 42) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase">Total Alumnos</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{totalAlumnos}</p>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Alumnos</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalAlumnos}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase">Total Docentes</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{totalDocentes}</p>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Docentes</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalDocentes}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[11px] font-semibold text-amber-700 uppercase">Solicitudes Pend.</p>
-          <p className="text-2xl font-bold text-amber-600 mt-1">{solicitudesPendientes}</p>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Solicitudes Pend.</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{solicitudesPendientes}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[11px] font-semibold text-teal-700 uppercase">Aprobadas/Prog.</p>
-          <p className="text-2xl font-bold text-teal-700 mt-1">{asesoriasAprobadas}</p>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase">Aprobadas/Prog.</p>
+          <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{asesoriasAprobadas}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[11px] font-semibold text-emerald-800 uppercase">Realizadas</p>
-          <p className="text-2xl font-bold text-emerald-800 mt-1">{asesoriasRealizadas}</p>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 uppercase">Realizadas</p>
+          <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{asesoriasRealizadas}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[11px] font-semibold text-rose-700 uppercase">Canceladas</p>
-          <p className="text-2xl font-bold text-rose-600 mt-1">{asesoriasCanceladas}</p>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-400 uppercase">Canceladas</p>
+          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">{asesoriasCanceladas}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase">Alumnos Atendidos</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">{uniqueStudents}</p>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Alumnos Atendidos</p>
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">{uniqueStudents}</p>
         </div>
       </div>
 
       {/* Visual Charts (Requirement 21) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Asesorías por Carrera */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
-          <h2 className="text-base font-bold text-slate-900 mb-4">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">
             Demanda de Asesorías por Programa Educativo
           </h2>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dataCarreras} margin={{ top: 10, right: 20, left: -20, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', fontSize: '12px' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: chartTickColor }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: chartTickColor }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Bar dataKey="total" fill="#0f766e" radius={[4, 4, 0, 0]} name="Asesorías" />
               </BarChart>
             </ResponsiveContainer>
@@ -754,17 +766,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Asesorías por Docente Asesor */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
-          <h2 className="text-base font-bold text-slate-900 mb-4">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">
             Asesorías Impartidas por Docente Asesor
           </h2>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dataDocentes} margin={{ top: 10, right: 20, left: -20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', fontSize: '12px' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: chartTickColor }} angle={-20} textAnchor="end" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: chartTickColor }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Bar dataKey="total" fill="#d97706" radius={[4, 4, 0, 0]} name="Asesorías Atendidas" />
               </BarChart>
             </ResponsiveContainer>
@@ -773,16 +785,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Solicitudes Pendientes para Atención Rápida */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-600" />
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             Solicitudes que Requieren Atención Inmediata
           </h2>
           <button
             type="button"
             onClick={() => onNavigate('solicitudes')}
-            className="text-xs font-semibold text-emerald-800 hover:underline"
+            className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:underline"
           >
             Gestionar todas las solicitudes
           </button>
@@ -790,7 +802,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="px-4 py-3">Folio</th>
                 <th className="px-4 py-3">Fecha</th>
@@ -801,10 +813,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <th className="px-4 py-3 text-right">Acción</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {asesorias.filter(a => a.estado === 'pendiente' || a.estado === 'aprobada').length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-400 dark:text-slate-500">
                     No hay solicitudes pendientes en este momento.
                   </td>
                 </tr>
@@ -813,11 +825,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   .filter(a => a.estado === 'pendiente' || a.estado === 'aprobada')
                   .slice(0, 5)
                   .map(a => (
-                    <tr key={a.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-800">{a.folio}</td>
-                      <td className="px-4 py-3 text-slate-500">{a.fechaSolicitud}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{a.alumnoNombre}</td>
-                      <td className="px-4 py-3 text-slate-700">{a.materiaNombre}</td>
+                    <tr key={a.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-4 py-3 font-mono font-semibold text-slate-800 dark:text-emerald-300">{a.folio}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{a.fechaSolicitud}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{a.alumnoNombre}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{a.materiaNombre}</td>
                       <td className="px-4 py-3"><PriorityBadge prioridad={a.prioridad} /></td>
                       <td className="px-4 py-3"><StatusBadge estado={a.estado} /></td>
                       <td className="px-4 py-3 text-right">

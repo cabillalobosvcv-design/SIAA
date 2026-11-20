@@ -129,8 +129,8 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
     >
       <form onSubmit={handleSave} className="space-y-4 text-xs">
         {conflictError && (
-          <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 flex items-start gap-2.5">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold text-sm">Conflicto de Horario Detectado</p>
               <p className="mt-0.5">{conflictError}</p>
@@ -139,14 +139,14 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
         )}
 
         {/* Advisory Context Card */}
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+        <div className="p-3 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase">Alumno / Materia</p>
-            <p className="text-sm font-bold text-slate-900 mt-0.5">{asesoria.alumnoNombre}</p>
-            <p className="text-xs text-slate-600">{asesoria.materiaNombre} ({asesoria.materiaCodigo})</p>
+            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Alumno / Materia</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5">{asesoria.alumnoNombre}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-300">{asesoria.materiaNombre} ({asesoria.materiaCodigo})</p>
           </div>
           <div className="text-right">
-            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-900">
+            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/70 text-emerald-900 dark:text-emerald-200">
               {asesoria.matricula}
             </span>
           </div>
@@ -154,14 +154,14 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
 
         {/* Docente Selector */}
         <div>
-          <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-            <User className="w-4 h-4 text-emerald-800" />
+          <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+            <User className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
             Docente Asesor Especialista <span className="text-red-500">*</span>
           </label>
           <select
             value={selectedDocenteId}
             onChange={(e) => setSelectedDocenteId(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium"
+            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
           >
             {teachers.map(t => (
               <option key={t.uid} value={t.uid}>
@@ -174,41 +174,41 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
         {/* Fecha y Horario */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-emerald-800" />
+            <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
               Fecha Programada <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-emerald-800" />
+            <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
               Hora Inicio (24h) <span className="text-red-500">*</span>
             </label>
             <input
               type="time"
               value={horaInicio}
               onChange={handleHoraInicioChange}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-slate-400" />
+            <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
               Hora Término (60 min) <span className="text-red-500">*</span>
             </label>
             <input
               type="time"
               value={horaTermino}
               onChange={(e) => setHoraTermino(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
             />
           </div>
         </div>
@@ -216,14 +216,14 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
         {/* Aula y Modalidad */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-              <DoorOpen className="w-4 h-4 text-emerald-800" />
+            <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+              <DoorOpen className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
               Aula o Laboratorio Asignado <span className="text-red-500">*</span>
             </label>
             <select
               value={selectedAulaId}
               onChange={(e) => setSelectedAulaId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
             >
               {aulas.map(a => (
                 <option key={a.id} value={a.id}>
@@ -234,13 +234,13 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
+            <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1">
               Modalidad de Atención <span className="text-red-500">*</span>
             </label>
             <select
               value={modalidad}
               onChange={(e) => setModalidad(e.target.value as Modalidad)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium capitalize"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium capitalize"
             >
               <option value="presencial">Presencial (En Campus)</option>
               <option value="virtual">Virtual (Videoconferencia Institucional)</option>
@@ -251,7 +251,7 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
 
         {/* Observaciones de Asignación */}
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">
+          <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1">
             Instrucciones u Observaciones para el Alumno y Docente
           </label>
           <input
@@ -259,16 +259,16 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
             value={observaciones}
             onChange={(e) => setObservaciones(e.target.value)}
             placeholder="Ejemplo: Traer apuntes de clase y ejercicios de guía de estudio resueltos hasta donde hubo dudas."
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700"
+            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
           />
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+        <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 font-semibold rounded-lg transition-colors"
+            className="px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold rounded-lg transition-colors"
           >
             Cancelar
           </button>

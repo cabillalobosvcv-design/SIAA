@@ -97,9 +97,9 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 font-serif">
             {isHistoryView
               ? 'Historial de Asesorías Académicas'
               : currentRole === 'alumno'
@@ -108,7 +108,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               ? 'Mis Asesorías Asignadas'
               : 'Control y Seguimiento de Asesorías'}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {isHistoryView
               ? 'Consulta de sesiones concluidas, folios cerrados y evaluaciones finales.'
               : 'Programación, asistencia, evaluación pedagógica y fichas oficiales de asesoría.'}
@@ -128,16 +128,16 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
       </div>
 
       {/* Filter toolbar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar por folio, alumno, docente o materia..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
             />
           </div>
 
@@ -145,7 +145,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
             <select
               value={filterEstado}
               onChange={(e) => setFilterEstado(e.target.value)}
-              className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-emerald-700"
+              className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
             >
               <option value="all">Todos los Estados</option>
               <option value="confirmada">Confirmadas</option>
@@ -158,7 +158,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
             <select
               value={filterCarrera}
               onChange={(e) => setFilterCarrera(e.target.value)}
-              className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-emerald-700"
+              className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
             >
               <option value="all">Todas las Carreras</option>
               {carreras.map(c => (
@@ -170,7 +170,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               <select
                 value={filterDocente}
                 onChange={(e) => setFilterDocente(e.target.value)}
-                className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-emerald-700"
+                className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
               >
                 <option value="all">Todos los Docentes</option>
                 {teachers.map(t => (
@@ -183,10 +183,10 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="px-4 py-3">Folio</th>
                 <th className="px-4 py-3">Alumno</th>
@@ -198,39 +198,39 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {displayList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
                     No se encontraron asesorías registradas con los filtros seleccionados.
                   </td>
                 </tr>
               ) : (
                 displayList.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3.5 font-mono font-bold text-emerald-950">
+                  <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-3.5 font-mono font-bold text-emerald-950 dark:text-emerald-300">
                       {item.folio}
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="font-semibold text-slate-900">{item.alumnoNombre}</p>
-                      <p className="text-[11px] text-slate-500 font-mono">{item.matricula}</p>
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">{item.alumnoNombre}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{item.matricula}</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="font-medium text-slate-800">{item.materiaNombre}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">{item.materiaCodigo}</p>
+                      <p className="font-medium text-slate-800 dark:text-slate-200">{item.materiaNombre}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.materiaCodigo}</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="font-medium text-slate-800">{item.docenteAsignadoNombre || 'Sin asignar'}</p>
+                      <p className="font-medium text-slate-800 dark:text-slate-200">{item.docenteAsignadoNombre || 'Sin asignar'}</p>
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <p className="font-semibold text-slate-700">{item.fechaProgramada || 'Por agendar'}</p>
+                      <p className="font-semibold text-slate-700 dark:text-slate-200">{item.fechaProgramada || 'Por agendar'}</p>
                       {item.horaInicio && (
-                        <p className="text-[11px] text-slate-500">{item.horaInicio} - {item.horaTermino} hrs</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.horaInicio} - {item.horaTermino} hrs</p>
                       )}
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <p className="text-slate-700 font-medium">{item.aulaNombre || 'Aula asignada'}</p>
-                      <p className="text-[10px] text-slate-400 capitalize">{item.modalidad}</p>
+                      <p className="text-slate-700 dark:text-slate-200 font-medium">{item.aulaNombre || 'Aula asignada'}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{item.modalidad}</p>
                     </td>
                     <td className="px-4 py-3.5">
                       <StatusBadge estado={item.estado} />
@@ -240,7 +240,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                         <button
                           type="button"
                           onClick={() => onSelectAdvisory(item.id)}
-                          className="p-1.5 text-slate-600 hover:text-emerald-900 hover:bg-slate-100 rounded-md transition-colors"
+                          className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
                           title="Ver Ficha Completa"
                         >
                           <Eye className="w-4 h-4" />
@@ -249,7 +249,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                         <button
                           type="button"
                           onClick={() => SIAADataService.exportFichaPDF(item)}
-                          className="p-1.5 text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50 rounded-md transition-colors"
+                          className="p-1.5 text-emerald-800 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-md transition-colors"
                           title="Descargar Ficha en PDF"
                         >
                           <FileDown className="w-4 h-4" />
@@ -275,7 +275,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                             <button
                               type="button"
                               onClick={() => handleStatusChange(item.id, 'cerrada')}
-                              className="px-2 py-1 bg-emerald-100 text-emerald-800 font-semibold rounded hover:bg-emerald-200 text-[11px]"
+                              className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-semibold rounded hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-[11px]"
                               title="Cerrar Asesoría en Sistema"
                             >
                               Cerrar

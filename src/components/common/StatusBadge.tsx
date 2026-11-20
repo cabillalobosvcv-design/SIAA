@@ -16,88 +16,88 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ estado, size = 'sm' })
   const config: Record<EstadoAsesoria, { label: string; bg: string; text: string; dot: string; border: string }> = {
     pendiente: {
       label: 'Pendiente',
-      bg: 'bg-amber-50',
-      text: 'text-amber-800',
-      border: 'border-amber-200',
+      bg: 'bg-amber-50 dark:bg-amber-950/60',
+      text: 'text-amber-800 dark:text-amber-300',
+      border: 'border-amber-200 dark:border-amber-800/70',
       dot: 'bg-amber-500'
     },
     en_revision: {
       label: 'En Revisión',
-      bg: 'bg-blue-50',
-      text: 'text-blue-800',
-      border: 'border-blue-200',
+      bg: 'bg-blue-50 dark:bg-blue-950/60',
+      text: 'text-blue-800 dark:text-blue-300',
+      border: 'border-blue-200 dark:border-blue-800/70',
       dot: 'bg-blue-500'
     },
     aprobada: {
       label: 'Aprobada',
-      bg: 'bg-emerald-50',
-      text: 'text-emerald-800',
-      border: 'border-emerald-200',
+      bg: 'bg-emerald-50 dark:bg-emerald-950/60',
+      text: 'text-emerald-800 dark:text-emerald-300',
+      border: 'border-emerald-200 dark:border-emerald-800/70',
       dot: 'bg-emerald-500'
     },
     rechazada: {
       label: 'Rechazada',
-      bg: 'bg-rose-50',
-      text: 'text-rose-800',
-      border: 'border-rose-200',
+      bg: 'bg-rose-50 dark:bg-rose-950/60',
+      text: 'text-rose-800 dark:text-rose-300',
+      border: 'border-rose-200 dark:border-rose-800/70',
       dot: 'bg-rose-500'
     },
     asignada: {
       label: 'Asignada',
-      bg: 'bg-sky-50',
-      text: 'text-sky-800',
-      border: 'border-sky-200',
+      bg: 'bg-sky-50 dark:bg-sky-950/60',
+      text: 'text-sky-800 dark:text-sky-300',
+      border: 'border-sky-200 dark:border-sky-800/70',
       dot: 'bg-sky-500'
     },
     confirmada: {
       label: 'Confirmada',
-      bg: 'bg-teal-50',
-      text: 'text-teal-800',
-      border: 'border-teal-200',
+      bg: 'bg-teal-50 dark:bg-teal-950/60',
+      text: 'text-teal-800 dark:text-teal-300',
+      border: 'border-teal-200 dark:border-teal-800/70',
       dot: 'bg-teal-500'
     },
     en_proceso: {
       label: 'En Proceso',
-      bg: 'bg-indigo-50',
-      text: 'text-indigo-800',
-      border: 'border-indigo-200',
+      bg: 'bg-indigo-50 dark:bg-indigo-950/60',
+      text: 'text-indigo-800 dark:text-indigo-300',
+      border: 'border-indigo-200 dark:border-indigo-800/70',
       dot: 'bg-indigo-500'
     },
     realizada: {
       label: 'Realizada',
-      bg: 'bg-emerald-100',
-      text: 'text-emerald-900',
-      border: 'border-emerald-300',
-      dot: 'bg-emerald-600'
+      bg: 'bg-emerald-100 dark:bg-emerald-900/60',
+      text: 'text-emerald-900 dark:text-emerald-200',
+      border: 'border-emerald-300 dark:border-emerald-700',
+      dot: 'bg-emerald-600 dark:bg-emerald-400'
     },
     cancelada: {
       label: 'Cancelada',
-      bg: 'bg-slate-100',
-      text: 'text-slate-700',
-      border: 'border-slate-200',
+      bg: 'bg-slate-100 dark:bg-slate-800',
+      text: 'text-slate-700 dark:text-slate-300',
+      border: 'border-slate-200 dark:border-slate-700',
       dot: 'bg-slate-400'
     },
     no_asistio: {
       label: 'No Asistió',
-      bg: 'bg-orange-50',
-      text: 'text-orange-800',
-      border: 'border-orange-200',
+      bg: 'bg-orange-50 dark:bg-orange-950/60',
+      text: 'text-orange-800 dark:text-orange-300',
+      border: 'border-orange-200 dark:border-orange-800/70',
       dot: 'bg-orange-500'
     },
     cerrada: {
       label: 'Cerrada',
-      bg: 'bg-slate-200',
-      text: 'text-slate-800',
-      border: 'border-slate-300',
-      dot: 'bg-slate-500'
+      bg: 'bg-slate-200 dark:bg-slate-800',
+      text: 'text-slate-800 dark:text-slate-200',
+      border: 'border-slate-300 dark:border-slate-700',
+      dot: 'bg-slate-500 dark:bg-slate-400'
     }
   };
 
   const item = config[estado] || {
     label: estado,
-    bg: 'bg-slate-50',
-    text: 'text-slate-800',
-    border: 'border-slate-200',
+    bg: 'bg-slate-50 dark:bg-slate-800',
+    text: 'text-slate-800 dark:text-slate-200',
+    border: 'border-slate-200 dark:border-slate-700',
     dot: 'bg-slate-400'
   };
 
@@ -113,10 +113,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ estado, size = 'sm' })
 
 export const PriorityBadge: React.FC<{ prioridad: Prioridad }> = ({ prioridad }) => {
   const styles: Record<Prioridad, { label: string; cls: string }> = {
-    baja: { label: 'Baja', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
-    media: { label: 'Media', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-    alta: { label: 'Alta', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
-    urgente: { label: 'Urgente', cls: 'bg-red-50 text-red-800 border-red-300 font-bold' }
+    baja: { label: 'Baja', cls: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
+    media: { label: 'Media', cls: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/70' },
+    alta: { label: 'Alta', cls: 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/70' },
+    urgente: { label: 'Urgente', cls: 'bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800/70 font-bold' }
   };
 
   const p = styles[prioridad] || styles.media;

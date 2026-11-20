@@ -102,40 +102,42 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
   };
 
   const statusColorMap: Record<EstadoAsesoria, string> = {
-    pendiente: 'bg-amber-100 text-amber-900 border-amber-300',
-    en_revision: 'bg-amber-100 text-amber-900 border-amber-300',
-    aprobada: 'bg-teal-100 text-teal-900 border-teal-300',
-    asignada: 'bg-blue-100 text-blue-900 border-blue-300',
-    confirmada: 'bg-sky-100 text-sky-900 border-sky-300',
-    en_proceso: 'bg-emerald-100 text-emerald-900 border-emerald-300',
-    realizada: 'bg-emerald-200 text-emerald-950 border-emerald-400',
-    cerrada: 'bg-slate-200 text-slate-800 border-slate-300',
-    cancelada: 'bg-rose-100 text-rose-800 border-rose-200',
-    rechazada: 'bg-rose-100 text-rose-800 border-rose-200',
-    no_asistio: 'bg-stone-200 text-stone-800 border-stone-300'
+    pendiente: 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+    en_revision: 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+    aprobada: 'bg-teal-100 dark:bg-teal-950/70 text-teal-900 dark:text-teal-300 border-teal-300 dark:border-teal-800',
+    asignada: 'bg-blue-100 dark:bg-blue-950/70 text-blue-900 dark:text-blue-300 border-blue-300 dark:border-blue-800',
+    confirmada: 'bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-300 border-sky-300 dark:border-sky-800',
+    en_proceso: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+    realizada: 'bg-emerald-200 dark:bg-emerald-900/70 text-emerald-950 dark:text-emerald-200 border-emerald-400 dark:border-emerald-700',
+    cerrada: 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700',
+    cancelada: 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+    rechazada: 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+    no_asistio: 'bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-200 border-stone-300 dark:border-stone-700'
   };
 
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header with Navigation & Filters */}
-      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 font-serif">
             Calendario Institucional de Asesorías
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Programación semanal y mensual de sesiones, horarios y aulas en campus.
           </p>
         </div>
 
         {/* View Switcher & Month Navigation */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-slate-100 rounded-lg p-1">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
             <button
               type="button"
               onClick={() => setViewMode('month')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                viewMode === 'month' ? 'bg-white text-emerald-900 shadow-xs' : 'text-slate-600'
+                viewMode === 'month'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300'
               }`}
             >
               Mes
@@ -144,29 +146,31 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
               type="button"
               onClick={() => setViewMode('agenda')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                viewMode === 'agenda' ? 'bg-white text-emerald-900 shadow-xs' : 'text-slate-600'
+                viewMode === 'agenda'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300'
               }`}
             >
               Agenda
             </button>
           </div>
 
-          <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-2 py-1 bg-white shadow-2xs">
+          <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 bg-white dark:bg-slate-800 shadow-2xs">
             <button
               type="button"
               onClick={prevMonth}
-              className="p-1 text-slate-600 hover:text-emerald-900 hover:bg-slate-50 rounded"
+              className="p-1 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded"
               title="Mes anterior"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-xs font-bold text-slate-800 min-w-[120px] text-center">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 min-w-[120px] text-center">
               {monthNames[month]} {year}
             </span>
             <button
               type="button"
               onClick={nextMonth}
-              className="p-1 text-slate-600 hover:text-emerald-900 hover:bg-slate-50 rounded"
+              className="p-1 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded"
               title="Mes siguiente"
             >
               <ChevronRight className="w-4 h-4" />
@@ -176,17 +180,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-emerald-800" />
-          <span className="text-xs font-bold text-slate-700">Filtros:</span>
+          <Filter className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Filtros:</span>
         </div>
 
         {currentRole !== 'docente' && (
           <select
             value={filterDocente}
             onChange={(e) => setFilterDocente(e.target.value)}
-            className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-emerald-700"
+            className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
           >
             <option value="all">Todos los Docentes</option>
             {docentes.map(d => (
@@ -198,7 +202,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
         <select
           value={filterAula}
           onChange={(e) => setFilterAula(e.target.value)}
-          className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-emerald-700"
+          className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
         >
           <option value="all">Todas las Aulas y Espacios</option>
           {aulas.map(a => (
@@ -209,35 +213,37 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
 
       {/* View Mode: Month Grid */}
       {viewMode === 'month' ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
           {/* Days of week header */}
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-bold text-slate-700">
+          <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-center text-xs font-bold text-slate-700 dark:text-slate-200">
             {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
               <div key={d} className="py-2.5">{d}</div>
             ))}
           </div>
 
           {/* Calendar Grid Days */}
-          <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 min-h-[500px]">
+          <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 dark:divide-slate-800 min-h-[500px]">
             {calendarCells.map((cell, idx) => {
               const dayEvents = getEventsForDate(cell.dateStr);
               return (
                 <div
                   key={idx}
                   className={`p-2 min-h-[95px] flex flex-col transition-colors ${
-                    cell.isCurrentMonth ? 'bg-white hover:bg-slate-50/50' : 'bg-slate-50/40 text-slate-400'
+                    cell.isCurrentMonth
+                      ? 'bg-white dark:bg-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
+                      : 'bg-slate-50/40 dark:bg-slate-950/60 text-slate-400 dark:text-slate-600'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span
                       className={`text-xs font-semibold ${
-                        cell.isCurrentMonth ? 'text-slate-800' : 'text-slate-400'
+                        cell.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-600'
                       }`}
                     >
                       {cell.dayNumber}
                     </span>
                     {dayEvents.length > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-900">
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-900/70 text-emerald-900 dark:text-emerald-200">
                         {dayEvents.length}
                       </span>
                     )}
@@ -267,9 +273,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
         </div>
       ) : (
         /* View Mode: Agenda List */
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
           {displayAsesorias.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-400">
+            <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
               No hay asesorías agendadas para el periodo y filtros seleccionados.
             </div>
           ) : (
@@ -278,30 +284,30 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
               .map(item => (
                 <div
                   key={item.id}
-                  className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                  className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 text-center min-w-[65px]">
+                    <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0 text-center min-w-[65px]">
                       <span className="text-[10px] uppercase font-bold block">{item.fechaProgramada?.split('-')[1]}</span>
-                      <span className="text-base font-extrabold text-emerald-950">{item.fechaProgramada?.split('-')[2]}</span>
+                      <span className="text-base font-extrabold text-emerald-950 dark:text-emerald-200">{item.fechaProgramada?.split('-')[2]}</span>
                     </div>
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-emerald-950">{item.folio}</span>
-                        <span className="font-bold text-slate-900 text-sm">{item.materiaNombre}</span>
+                        <span className="font-mono font-bold text-emerald-950 dark:text-emerald-300">{item.folio}</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{item.materiaNombre}</span>
                         <StatusBadge estado={item.estado} />
                       </div>
-                      <p className="text-slate-600 mt-1">
-                        Alumno: <span className="font-semibold text-slate-800">{item.alumnoNombre}</span> ({item.matricula}) • Docente: <span className="font-semibold text-slate-800">{item.docenteAsignadoNombre || 'Por asignar'}</span>
+                      <p className="text-slate-600 dark:text-slate-300 mt-1">
+                        Alumno: <span className="font-semibold text-slate-800 dark:text-slate-100">{item.alumnoNombre}</span> ({item.matricula}) • Docente: <span className="font-semibold text-slate-800 dark:text-slate-100">{item.docenteAsignadoNombre || 'Por asignar'}</span>
                       </p>
-                      <div className="flex items-center gap-4 text-slate-500 mt-1">
+                      <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 mt-1">
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                           {item.horaInicio} - {item.horaTermino} hrs
                         </span>
                         <span className="flex items-center gap-1">
-                          <DoorOpen className="w-3.5 h-3.5 text-slate-400" />
+                          <DoorOpen className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                           {item.aulaNombre} ({item.modalidad})
                         </span>
                       </div>

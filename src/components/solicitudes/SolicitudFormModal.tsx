@@ -103,8 +103,8 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         {errorMsg && (
-          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <p className="font-medium">{errorMsg}</p>
           </div>
         )}
@@ -112,13 +112,13 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
         {/* Alumno Selector (Only if Admin, Director, or Teacher) */}
         {!isStudent ? (
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
+            <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1">
               Alumno que recibirá la asesoría <span className="text-red-500">*</span>
             </label>
             <select
               value={selectedAlumnoId}
               onChange={(e) => setSelectedAlumnoId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
             >
               {users.filter(u => u.rol === 'alumno' && u.estado === 'activo').map(alu => (
                 <option key={alu.uid} value={alu.uid}>
@@ -128,22 +128,22 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
             </select>
           </div>
         ) : (
-          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
+          <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200">
             <p className="font-semibold text-xs">Alumno Solicitante:</p>
             <p className="text-sm font-bold">{currentUser?.nombre} {currentUser?.apellidoPaterno} {currentUser?.apellidoMaterno}</p>
-            <p className="text-[11px] text-emerald-700">Matrícula: {currentUser?.matricula} | Correo: {currentUser?.correo}</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400">Matrícula: {currentUser?.matricula} | Correo: {currentUser?.correo}</p>
           </div>
         )}
 
         {/* Materia Selector */}
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">
+          <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1">
             Materia o Asignatura <span className="text-red-500">*</span>
           </label>
           <select
             value={materiaId}
             onChange={(e) => setMateriaId(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700 font-medium"
+            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
           >
             {materias.map(mat => (
               <option key={mat.id} value={mat.id}>
@@ -155,7 +155,7 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
 
         {/* Prioridad */}
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">
+          <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1">
             Nivel de Prioridad o Urgencia
           </label>
           <div className="grid grid-cols-4 gap-2">
@@ -167,7 +167,7 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
                 className={`py-2 px-3 rounded-lg border text-center capitalize font-semibold transition-colors ${
                   prioridad === p
                     ? 'bg-emerald-900 text-white border-emerald-900 shadow-2xs'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
                 {p}
@@ -178,7 +178,7 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
 
         {/* Motivo de Asesoría */}
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">
+          <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1">
             Motivo de la Solicitud <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -186,13 +186,13 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             placeholder="Ejemplo: Dificultad para resolver problemas de aplicación en derivadas y reprobación de la primera evaluación parcial."
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700"
+            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
           />
         </div>
 
         {/* Temas con Dificultad */}
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">
+          <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1">
             Temas Específicos con Dificultad de Aprendizaje <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -200,16 +200,16 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
             value={temasDificultad}
             onChange={(e) => setTemasDificultad(e.target.value)}
             placeholder="Ejemplo: Regla de la cadena, máximos y mínimos, optimización con funciones trigonométricas."
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-700"
+            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
           />
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+        <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 font-semibold rounded-lg transition-colors"
+            className="px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold rounded-lg transition-colors"
           >
             Cancelar
           </button>

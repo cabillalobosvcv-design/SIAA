@@ -66,15 +66,15 @@ export const ReportesView: React.FC = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 uppercase tracking-wider">
+          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 uppercase tracking-wider">
             Módulo de Evaluación y Calidad Académica
           </span>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mt-2 font-serif">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 font-serif">
             Reportes e Indicadores de Rendimiento
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Generación oficial de informes institucionales para auditoría, acreditaciones y Consejo Académico.
           </p>
         </div>
@@ -83,7 +83,7 @@ export const ReportesView: React.FC = () => {
           <button
             type="button"
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white font-semibold text-xs shadow-xs transition-colors"
           >
             <FileSpreadsheet className="w-4 h-4 text-amber-400" />
             Descargar Excel (.xlsx)
@@ -101,44 +101,44 @@ export const ReportesView: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Total de Asesorías</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{totalAsesorias}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">En el periodo seleccionado</p>
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total de Asesorías</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalAsesorias}</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">En el periodo seleccionado</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-emerald-800 uppercase">Sesiones Concluidas</p>
-          <p className="text-2xl font-bold text-emerald-800 mt-1">{realizadas}</p>
-          <p className="text-[11px] text-emerald-700 mt-0.5">Con seguimiento formal</p>
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase">Sesiones Concluidas</p>
+          <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas}</p>
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-500 mt-0.5">Con seguimiento formal</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-teal-700 uppercase">Estudiantes Beneficiados</p>
-          <p className="text-2xl font-bold text-teal-700 mt-1">{uniqueStudents}</p>
-          <p className="text-[11px] text-teal-600 mt-0.5">Alumnos únicos atendidos</p>
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase">Estudiantes Beneficiados</p>
+          <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{uniqueStudents}</p>
+          <p className="text-[11px] text-teal-600 dark:text-teal-500 mt-0.5">Alumnos únicos atendidos</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-amber-700 uppercase">Tasa de Aprobación</p>
-          <p className="text-2xl font-bold text-amber-600 mt-1">{satisfaccion}%</p>
-          <p className="text-[11px] text-amber-700 mt-0.5">Resultado pedagógico positivo</p>
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase">Tasa de Aprobación</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{satisfaccion}%</p>
+          <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-0.5">Resultado pedagógico positivo</p>
         </div>
       </div>
 
       {/* Filter Parameters */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-        <h2 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <Filter className="w-4 h-4 text-emerald-800" />
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
+          <Filter className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
           Parámetros y Filtros del Reporte
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           <div>
-            <label className="block font-semibold text-slate-600 mb-1">Programa / Carrera</label>
+            <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Programa / Carrera</label>
             <select
               value={selectedCarrera}
               onChange={(e) => setSelectedCarrera(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
             >
               <option value="all">Todas las Carreras</option>
               {carreras.map(c => (
@@ -148,11 +148,11 @@ export const ReportesView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-600 mb-1">Cuatrimestre</label>
+            <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Cuatrimestre</label>
             <select
               value={selectedCuatrimestre}
               onChange={(e) => setSelectedCuatrimestre(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
             >
               <option value="all">Todos los Cuatrimestres</option>
               {cuatrimestres.map(cu => (
@@ -162,11 +162,11 @@ export const ReportesView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-600 mb-1">Docente Asesor</label>
+            <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Docente Asesor</label>
             <select
               value={selectedDocente}
               onChange={(e) => setSelectedDocente(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
             >
               <option value="all">Todos los Docentes</option>
               {docentes.map(d => (
@@ -176,11 +176,11 @@ export const ReportesView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-600 mb-1">Estado de la Asesoría</label>
+            <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Estado de la Asesoría</label>
             <select
               value={selectedEstado}
               onChange={(e) => setSelectedEstado(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
             >
               <option value="all">Todos los Estados</option>
               <option value="pendiente">Pendientes</option>
@@ -195,17 +195,17 @@ export const ReportesView: React.FC = () => {
       </div>
 
       {/* Report Data Preview Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Vista Previa de Registros Incluidos</h2>
-            <p className="text-xs text-slate-500">Mostrando {filtered.length} registros que serán exportados en los reportes.</p>
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Vista Previa de Registros Incluidos</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Mostrando {filtered.length} registros que serán exportados en los reportes.</p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="px-4 py-3">Folio</th>
                 <th className="px-4 py-3">Alumno</th>
@@ -217,17 +217,17 @@ export const ReportesView: React.FC = () => {
                 <th className="px-4 py-3">Resultado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filtered.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3 font-mono font-bold text-emerald-950">{item.folio}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900">{item.alumnoNombre}</td>
-                  <td className="px-4 py-3 text-slate-600">{item.carreraNombre}</td>
-                  <td className="px-4 py-3 text-slate-700">{item.materiaNombre}</td>
-                  <td className="px-4 py-3 text-slate-600">{item.docenteAsignadoNombre || '--'}</td>
-                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{item.fechaProgramada || item.fechaSolicitud}</td>
+                <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
+                  <td className="px-4 py-3 font-mono font-bold text-emerald-950 dark:text-emerald-400">{item.folio}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{item.alumnoNombre}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.carreraNombre}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{item.materiaNombre}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.docenteAsignadoNombre || '--'}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{item.fechaProgramada || item.fechaSolicitud}</td>
                   <td className="px-4 py-3"><StatusBadge estado={item.estado} /></td>
-                  <td className="px-4 py-3 text-slate-600 capitalize">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 capitalize">
                     {item.seguimiento ? item.seguimiento.resultado.replace('_', ' ') : 'Pendiente'}
                   </td>
                 </tr>

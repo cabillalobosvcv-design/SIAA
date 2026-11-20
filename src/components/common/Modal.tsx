@@ -42,15 +42,15 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs overflow-y-auto animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className={`relative w-full ${widthClasses} my-8 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden text-left`}
+        className={`relative w-full ${widthClasses} my-8 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 overflow-hidden text-left`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Institutional Header with Green & Gold Accent */}
-        <div className="relative bg-emerald-900 px-6 py-4 border-b-2 border-amber-500 text-white flex items-start justify-between">
+        <div className="relative bg-emerald-900 dark:bg-emerald-950 px-6 py-4 border-b-2 border-amber-500 text-white flex items-start justify-between">
           <div>
             <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
               {title}

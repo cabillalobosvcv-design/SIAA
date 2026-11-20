@@ -117,18 +117,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-16 sm:top-20 bottom-0 left-0 z-30 w-64 bg-white border-r border-slate-200 shadow-xs flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-16 sm:top-20 bottom-0 left-0 z-30 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-xs flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Institutional Section Banner */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/80">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
             Módulo Institucional
           </p>
           <div className="flex items-center gap-2 mt-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-            <p className="text-xs font-semibold text-slate-700 capitalize">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-500"></span>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 capitalize">
               {currentRole === 'admin' && 'Administración Central'}
               {currentRole === 'director' && 'Dirección Académica'}
               {currentRole === 'docente' && 'Portal del Docente'}
@@ -152,14 +152,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors ${
                   isActive
-                    ? 'bg-emerald-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
+                    ? 'bg-emerald-900 dark:bg-emerald-800 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-900 dark:hover:text-emerald-300'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Icon
                     className={`w-4 h-4 shrink-0 ${
-                      isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-emerald-800'
+                      isActive ? 'text-amber-400' : 'text-slate-400 dark:text-slate-500'
                     }`}
                   />
                   <span>{item.label}</span>
@@ -170,16 +170,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Footer info in sidebar */}
-        <div className="p-3 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-500">
-          <p className="font-semibold text-slate-700 truncate">
+        <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 text-[11px] text-slate-500 dark:text-slate-400">
+          <p className="font-semibold text-slate-700 dark:text-slate-200 truncate">
             {currentUser?.nombre} {currentUser?.apellidoPaterno}
           </p>
-          <p className="text-[10px] text-slate-400 truncate">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
             {currentUser?.correo}
           </p>
-          <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-400">
+          <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
             <span>SIAA v2.4</span>
-            <span className="text-emerald-700 font-semibold">Ciclo 2026-3</span>
+            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Ciclo 2026-3</span>
           </div>
         </div>
       </aside>
