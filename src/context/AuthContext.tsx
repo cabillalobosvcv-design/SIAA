@@ -42,6 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     refreshUser();
     setLoading(false);
+
+    const handleUsersUpdated = () => {
+      const savedUid = localStorage.getItem(AUTH_USER_KEY);
+      if (!savedUid) return;
+      const users = SIAADataService.getUsers();
+      const updated = users.find(u => u.uid === savedUid);
+      if (updated) {
+        setCurrentUser(updated);
+      }
+    };
+
+    window.addEventListener('siaa-users-updated', handleUsersUpdated);
+    return () => window.removeEventListener('siaa-users-updated', handleUsersUpdated);
   }, []);
 
   const login = async (correo: string, _contrasenia: string): Promise<{ success: boolean; error?: string }> => {

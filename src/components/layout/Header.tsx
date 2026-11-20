@@ -16,7 +16,9 @@ import { useAuth } from '../../context/AuthContext';
 import { SIAADataService } from '../../services/siaaService';
 import { UserRole } from '../../types/siaa';
 import { ThemeToggleButton } from '../common/ThemeToggleButton';
+import { UserAvatar } from '../common/UserAvatar';
 import { getRoleMeta } from '../../utils/roles';
+import { useInstitutionalConfig } from '../../hooks/useInstitutionalConfig';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -32,11 +34,13 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectAdvisory
 }) => {
   const { currentUser, logout, switchUser } = useAuth();
+  const config = useInstitutionalConfig();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
 
   const notifications = currentUser ? SIAADataService.getNotifications(currentUser.uid) : [];
   const unreadCount = notifications.filter(n => !n.leida).length;
+  const allUsers = SIAADataService.getUsers();
 
   const demoAccounts: { name: string; roleName: string; role: UserRole; uid: string; email: string }[] = [
     {
@@ -114,20 +118,28 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-white/10 border border-amber-400/40 flex items-center justify-center shadow-inner shrink-0">
-                <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400" />
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-white/10 border border-amber-400/40 flex items-center justify-center shadow-inner shrink-0 overflow-hidden">
+                {config.logoURL ? (
+                  <img
+                    src={config.logoURL}
+                    alt={config.nombreCorto}
+                    className="w-full h-full object-contain bg-white/95 p-0.5"
+                  />
+                ) : (
+                  <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400" />
+                )}
               </div>
               <div className="leading-tight">
                 <div className="flex items-center gap-2">
                   <span className="text-xl sm:text-2xl font-bold tracking-tight text-white font-serif">
-                    SIAA
+                    {config.nombreCorto}
                   </span>
                   <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-amber-500 text-emerald-950">
                     Institucional
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-emerald-200/90 font-medium hidden xs:block">
-                  Sistema Integral de Asesorías Académicas
+                <p className="text-xs sm:text-sm text-emerald-200/90 font-medium hidden xs:block truncate max-w-[260px] sm:max-w-[340px]">
+                  {config.nombreCompleto}
                 </p>
               </div>
             </div>
@@ -166,30 +178,41 @@ export const Header: React.FC<HeaderProps> = ({
                     </p>
                   </div>
                   <div className="py-1 max-h-80 overflow-y-auto">
-                    {demoAccounts.map(demo => (
-                      <button
-                        key={demo.uid}
-                        type="button"
-                        onClick={() => switchUser(demo.uid)}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-950/60 flex items-start gap-2.5 transition-colors ${
-                          currentUser?.uid === demo.uid
-                            ? 'bg-emerald-50/80 dark:bg-emerald-950/70 font-semibold text-emerald-900 dark:text-emerald-300'
-                            : 'text-slate-700 dark:text-slate-200'
-                        }`}
-                      >
-                        <div className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-300 mt-0.5 shrink-0">
-                          {demo.role === 'admin' && <Shield className="w-3.5 h-3.5" />}
-                          {(demo.role === 'director' || demo.role === 'jefe_carrera') && <GraduationCap className="w-3.5 h-3.5" />}
-                          {(demo.role === 'ptc_tutor' || demo.role === 'pa' || demo.role === 'administrativo_docente') && <BookOpen className="w-3.5 h-3.5" />}
-                          {demo.role === 'alumno' && <UserIcon className="w-3.5 h-3.5" />}
-                        </div>
-                        <div className="truncate">
-                          <p className="font-semibold truncate">{demo.name}</p>
-                          <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">{demo.roleName}</p>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{demo.email}</p>
-                        </div>
-                      </button>
-                    ))}
+                    {demoAccounts.map(demo => {
+                      const matchedUser = allUsers.find(u => u.uid === demo.uid);
+                      return (
+                        <button
+                          key={demo.uid}
+                          type="button"
+                          onClick={() => switchUser(demo.uid)}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-950/60 flex items-start gap-2.5 transition-colors ${
+                            currentUser?.uid === demo.uid
+                              ? 'bg-emerald-50/80 dark:bg-emerald-950/70 font-semibold text-emerald-900 dark:text-emerald-300'
+                              : 'text-slate-700 dark:text-slate-200'
+                          }`}
+                        >
+                          {matchedUser?.fotoURL ? (
+                            <UserAvatar
+                              user={matchedUser}
+                              size="xs"
+                              className="mt-0.5 border border-emerald-200 dark:border-emerald-700"
+                            />
+                          ) : (
+                            <div className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-300 mt-0.5 shrink-0">
+                              {demo.role === 'admin' && <Shield className="w-3.5 h-3.5" />}
+                              {(demo.role === 'director' || demo.role === 'jefe_carrera') && <GraduationCap className="w-3.5 h-3.5" />}
+                              {(demo.role === 'ptc_tutor' || demo.role === 'pa' || demo.role === 'administrativo_docente') && <BookOpen className="w-3.5 h-3.5" />}
+                              {demo.role === 'alumno' && <UserIcon className="w-3.5 h-3.5" />}
+                            </div>
+                          )}
+                          <div className="truncate">
+                            <p className="font-semibold truncate">{demo.name}</p>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">{demo.roleName}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{demo.email}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -293,9 +316,11 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </div>
 
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-500 text-emerald-950 font-bold flex items-center justify-center text-xs shadow-inner shrink-0">
-                  {currentUser.nombre.charAt(0)}{currentUser.apellidoPaterno.charAt(0)}
-                </div>
+                <UserAvatar
+                  user={currentUser}
+                  size="md"
+                  className="bg-amber-500 text-emerald-950 shadow-inner ring-2 ring-amber-400/50"
+                />
 
                 <button
                   type="button"

@@ -20,10 +20,14 @@ import {
   FileSpreadsheet,
   Layers,
   GitBranch,
-  Check
+  Check,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { UserAvatar } from '../common/UserAvatar';
+import { fileToCompressedDataUrl } from '../../utils/imageUtils';
 import {
   ROLE_HIERARCHY,
   getRoleMeta,
@@ -67,7 +71,10 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
   const [carreraId, setCarreraId] = useState('');
   const [carrerasIds, setCarrerasIds] = useState<string[]>([]);
   const [grupoId, setGrupoId] = useState('');
+  const [fotoURL, setFotoURL] = useState<string | undefined>(undefined);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const photoInputRef = React.useRef<HTMLInputElement | null>(null);
 
   void refreshTick;
   const users = SIAADataService.getUsers();
@@ -110,6 +117,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
     setCarreraId(defaultCarr);
     setCarrerasIds(defaultCarr ? [defaultCarr] : []);
     setGrupoId(grupos[0]?.id || '');
+    setFotoURL(undefined);
     setFormError(null);
     setIsFormModalOpen(true);
   };
@@ -127,8 +135,30 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
     setCarreraId(userCarreras[0] || '');
     setCarrerasIds(userCarreras);
     setGrupoId(u.grupoId || '');
+    setFotoURL(u.fotoURL);
     setFormError(null);
     setIsFormModalOpen(true);
+  };
+
+  const handleUserPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setFormError(null);
+    setPhotoUploading(true);
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file, {
+        maxSize: 256,
+        preserveTransparency: false,
+        quality: 0.85
+      });
+      setFotoURL(dataUrl);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'No se pudo procesar la fotografía seleccionada.');
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const toggleCareerSelection = (cid: string) => {
@@ -174,7 +204,8 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
         numeroEmpleado: rol !== 'alumno' ? numeroEmpleado.trim() : undefined,
         carreraId: primaryCarreraId,
         carrerasIds: finalCarrerasIds,
-        grupoId: rol === 'alumno' ? grupoId : undefined
+        grupoId: rol === 'alumno' ? grupoId : undefined,
+        fotoURL
       }, currentUser);
 
       if (editingUser.uid === currentUser.uid) {
@@ -192,6 +223,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
         carreraId: primaryCarreraId,
         carrerasIds: finalCarrerasIds,
         grupoId: rol === 'alumno' ? grupoId : undefined,
+        fotoURL,
         estado: 'activo'
       }, currentUser);
     }
@@ -390,9 +422,11 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                 <tr key={u.uid} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-transparent dark:border-slate-700 font-bold flex items-center justify-center text-xs shrink-0">
-                        {u.nombre.charAt(0)}{u.apellidoPaterno.charAt(0)}
-                      </div>
+                      <UserAvatar
+                        user={u}
+                        size="sm"
+                        className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300/70 dark:border-slate-700"
+                      />
                       <div>
                         <p className="font-bold text-slate-900 dark:text-slate-100">{u.nombre} {u.apellidoPaterno} {u.apellidoMaterno}</p>
                         <p className="text-[10px] text-slate-400 dark:text-slate-500">UID: {u.uid}</p>
@@ -540,6 +574,65 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
               <p className="font-semibold">{formError}</p>
             </div>
           )}
+
+          {/* Profile Photo Upload Block */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="relative shrink-0">
+              <UserAvatar
+                fotoURL={fotoURL}
+                nombre={nombre || 'U'}
+                apellidoPaterno={apellidoPaterno || 'S'}
+                size="lg"
+                className="bg-emerald-900 text-amber-400 border-2 border-amber-500 shadow-sm"
+              />
+              <button
+                type="button"
+                disabled={photoUploading}
+                onClick={() => photoInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500 hover:bg-amber-400 text-emerald-950 border-2 border-white dark:border-slate-900 flex items-center justify-center shadow-xs"
+                title="Seleccionar fotografía"
+              >
+                <Camera className="w-3 h-3" />
+              </button>
+            </div>
+
+            <div className="flex-1 text-center sm:text-left">
+              <p className="font-bold text-slate-800 dark:text-slate-100">
+                Fotografía de Perfil del Usuario
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Opcional. Formatos PNG, JPG o WEBP. Se almacena directamente en el registro del usuario.
+              </p>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={handleUserPhotoSelect}
+                className="hidden"
+              />
+              <div className="mt-2 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <button
+                  type="button"
+                  disabled={photoUploading}
+                  onClick={() => photoInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-semibold transition-colors disabled:opacity-60"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                  {photoUploading ? 'Procesando...' : fotoURL ? 'Cambiar Fotografía' : 'Subir Fotografía'}
+                </button>
+                {fotoURL && (
+                  <button
+                    type="button"
+                    onClick={() => setFotoURL(undefined)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Quitar foto
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -876,13 +969,20 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                                 : asesorias.filter(a => a.docenteAsignadoId === sub.uid).length;
                             return (
                               <div key={sub.uid} className="px-3.5 py-2.5 flex items-center justify-between gap-2 bg-white dark:bg-slate-900">
-                                <div>
-                                  <p className="font-semibold text-slate-900 dark:text-slate-100">
-                                    {sub.nombre} {sub.apellidoPaterno} {sub.apellidoMaterno}
-                                  </p>
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                                    {sub.matricula || sub.numeroEmpleado || sub.correo}
-                                  </p>
+                                <div className="flex items-center gap-2.5">
+                                  <UserAvatar
+                                    user={sub}
+                                    size="xs"
+                                    className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300/70 dark:border-slate-700"
+                                  />
+                                  <div>
+                                    <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                      {sub.nombre} {sub.apellidoPaterno} {sub.apellidoMaterno}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                                      {sub.matricula || sub.numeroEmpleado || sub.correo}
+                                    </p>
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <div className="flex flex-wrap gap-1 justify-end">

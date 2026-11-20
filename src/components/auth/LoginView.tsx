@@ -15,10 +15,15 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../../types/siaa';
 import { ThemeToggleButton } from '../common/ThemeToggleButton';
+import { UserAvatar } from '../common/UserAvatar';
 import { getRoleMeta } from '../../utils/roles';
+import { useInstitutionalConfig } from '../../hooks/useInstitutionalConfig';
+import { SIAADataService } from '../../services/siaaService';
 
 export const LoginView: React.FC = () => {
   const { login, switchUser } = useAuth();
+  const config = useInstitutionalConfig();
+  const allUsers = SIAADataService.getUsers();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -50,20 +55,28 @@ export const LoginView: React.FC = () => {
         <ThemeToggleButton variant="surface" />
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center px-4">
         {/* Institutional Crest / Emblem */}
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-900 border-2 border-amber-500 shadow-xl flex items-center justify-center transform hover:scale-105 transition-transform">
-          <GraduationCap className="w-10 h-10 text-amber-400" />
+        <div className="mx-auto w-20 h-20 rounded-2xl bg-emerald-900 border-2 border-amber-500 shadow-xl flex items-center justify-center transform hover:scale-105 transition-transform overflow-hidden p-1">
+          {config.logoURL ? (
+            <img
+              src={config.logoURL}
+              alt={config.nombreCorto}
+              className="w-full h-full object-contain rounded-xl bg-white/95 p-1"
+            />
+          ) : (
+            <GraduationCap className="w-11 h-11 text-amber-400" />
+          )}
         </div>
 
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-emerald-950 dark:text-white font-serif">
-          SIAA
+          {config.nombreCorto}
         </h1>
         <p className="mt-1 text-sm font-semibold text-emerald-800 dark:text-emerald-400">
-          Sistema Integral de Asesorías Académicas
+          {config.nombreCompleto}
         </p>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Plataforma Institucional de Tutoría, Acompañamiento y Rezago Pedagógico
+          {config.subtitulo}
         </p>
       </div>
 
@@ -150,6 +163,7 @@ export const LoginView: React.FC = () => {
             <div className="space-y-1.5">
               {demoQuickLogins.map(demo => {
                 const Icon = demo.icon;
+                const matchedUser = allUsers.find(u => u.uid === demo.uid);
                 return (
                   <button
                     key={demo.uid}
@@ -158,9 +172,17 @@ export const LoginView: React.FC = () => {
                     className="w-full text-left p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-600 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/70 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40 flex items-center justify-between transition-all group"
                   >
                     <div className="flex items-center gap-2.5 truncate">
-                      <div className="p-1.5 rounded-md bg-emerald-900 text-amber-400 shrink-0">
-                        <Icon className="w-3.5 h-3.5" />
-                      </div>
+                      {matchedUser?.fotoURL ? (
+                        <UserAvatar
+                          user={matchedUser}
+                          size="xs"
+                          className="border border-amber-500/70"
+                        />
+                      ) : (
+                        <div className="p-1.5 rounded-md bg-emerald-900 text-amber-400 shrink-0">
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                      )}
                       <div className="truncate">
                         <p className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-emerald-950 dark:group-hover:text-emerald-300 truncate">
                           {demo.name}

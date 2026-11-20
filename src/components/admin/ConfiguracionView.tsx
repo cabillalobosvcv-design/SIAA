@@ -1,23 +1,108 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { SIAADataService } from '../../services/siaaService';
 import { useTheme } from '../../context/ThemeContext';
-import { Settings, Save, RefreshCw, CheckCircle2, ShieldAlert, Sun, Moon } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useInstitutionalConfig } from '../../hooks/useInstitutionalConfig';
+import {
+  Settings,
+  Save,
+  RefreshCw,
+  CheckCircle2,
+  ShieldAlert,
+  Sun,
+  Moon,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  GraduationCap,
+  AlertCircle
+} from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { fileToCompressedDataUrl } from '../../utils/imageUtils';
 
 export const ConfiguracionView: React.FC = () => {
   const { theme, setTheme } = useTheme();
-  const [duracion, setDuracion] = useState(60);
-  const [horaApertura, setHoraApertura] = useState('07:00');
-  const [horaCierre, setHoraCierre] = useState('21:00');
-  const [anticipacionHoras, setAnticipacionHoras] = useState(24);
-  const [notifCorreo, setNotifCorreo] = useState(true);
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const { currentUser } = useAuth();
+  const config = useInstitutionalConfig();
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [nombreCorto, setNombreCorto] = useState(config.nombreCorto);
+  const [nombreCompleto, setNombreCompleto] = useState(config.nombreCompleto);
+  const [subtitulo, setSubtitulo] = useState(config.subtitulo);
+  const [duracion, setDuracion] = useState(config.duracionAsesoria);
+  const [horaApertura, setHoraApertura] = useState(config.horaApertura);
+  const [horaCierre, setHoraCierre] = useState(config.horaCierre);
+  const [anticipacionHoras, setAnticipacionHoras] = useState(config.anticipacionHoras);
+  const [notifCorreo, setNotifCorreo] = useState(config.notifCorreo);
+
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setFeedback(null);
+    setUploadingLogo(true);
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file, {
+        maxSize: 360,
+        preserveTransparency: true,
+        quality: 0.92
+      });
+      SIAADataService.updateInstitutionalConfig(
+        { logoURL: dataUrl },
+        currentUser || undefined
+      );
+      setFeedback({
+        type: 'success',
+        text: 'Logotipo institucional actualizado y guardado en la base de datos.'
+      });
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'No se pudo procesar la imagen del logotipo.'
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleResetLogo = () => {
+    setFeedback(null);
+    SIAADataService.updateInstitutionalConfig(
+      { logoURL: undefined },
+      currentUser || undefined
+    );
+    setFeedback({
+      type: 'success',
+      text: 'Logotipo institucional restablecido al emblema predeterminado.'
+    });
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    setFeedback(null);
+    SIAADataService.updateInstitutionalConfig(
+      {
+        nombreCorto: nombreCorto.trim() || 'SIAA',
+        nombreCompleto: nombreCompleto.trim() || 'Sistema Integral de Asesorías Académicas',
+        subtitulo: subtitulo.trim() || 'Plataforma Institucional de Tutoría, Acompañamiento y Rezago Pedagógico',
+        duracionAsesoria: duracion,
+        horaApertura,
+        horaCierre,
+        anticipacionHoras,
+        notifCorreo
+      },
+      currentUser || undefined
+    );
+    setFeedback({
+      type: 'success',
+      text: '¡Configuración institucional e identidad visual guardadas en la base de datos!'
+    });
+    setTimeout(() => setFeedback(null), 3500);
   };
 
   const handleResetData = () => {
@@ -33,7 +118,7 @@ export const ConfiguracionView: React.FC = () => {
           Configuración General de la Plataforma SIAA
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Parámetros institucionales, reglas de negocio para agendamiento y mantenimiento del sistema.
+          Logotipo institucional, parámetros académicos, reglas de agendamiento y mantenimiento del sistema.
         </p>
       </div>
 
@@ -83,19 +168,144 @@ export const ConfiguracionView: React.FC = () => {
         </div>
       </div>
 
-      {savedSuccess && (
-        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 font-bold rounded-lg flex items-center gap-2 text-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          ¡Configuración institucional guardada exitosamente!
+      {feedback && (
+        <div
+          className={`p-3.5 rounded-lg flex items-center gap-2 text-xs font-bold ${
+            feedback.type === 'success'
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300'
+              : 'bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-300'
+          }`}
+        >
+          {feedback.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+          )}
+          <span>{feedback.text}</span>
         </div>
       )}
 
       {/* Settings Form */}
       <form onSubmit={handleSave} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6 space-y-6 text-xs">
+        {/* Section 1: Institutional Logo & Identity */}
+        <div>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
+            1. Logotipo e Identidad Institucional
+          </h2>
+
+          <div className="mt-4 flex flex-col sm:flex-row items-start gap-5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <div className="w-24 h-24 rounded-xl bg-emerald-900 border-2 border-amber-500 flex items-center justify-center overflow-hidden shadow-md p-1.5">
+                {config.logoURL ? (
+                  <img
+                    src={config.logoURL}
+                    alt="Logotipo Institucional"
+                    className="w-full h-full object-contain rounded-lg bg-white/95 p-1"
+                  />
+                ) : (
+                  <GraduationCap className="w-12 h-12 text-amber-400" />
+                )}
+              </div>
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                {config.logoURL ? 'Logotipo personalizado' : 'Emblema predeterminado'}
+              </span>
+            </div>
+
+            <div className="flex-1 space-y-3">
+              <div>
+                <p className="font-bold text-slate-800 dark:text-slate-100">
+                  Imagen del Logotipo Institucional
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Se mostrará automáticamente en la barra superior, pantalla de inicio de sesión y encabezados de reportes y fichas PDF. Formatos admitidos: PNG (con fondo transparente), JPG, WEBP o SVG.
+                </p>
+              </div>
+
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={uploadingLogo}
+                  onClick={() => logoInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-900 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white font-bold shadow-xs transition-colors disabled:opacity-60"
+                >
+                  <Upload className="w-3.5 h-3.5 text-amber-400" />
+                  {uploadingLogo
+                    ? 'Cargando logotipo...'
+                    : config.logoURL
+                    ? 'Cambiar Logotipo'
+                    : 'Subir Logotipo'}
+                </button>
+
+                {config.logoURL && (
+                  <button
+                    type="button"
+                    onClick={handleResetLogo}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 font-semibold transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Restablecer Predeterminado
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Siglas / Nombre Corto
+              </label>
+              <input
+                type="text"
+                value={nombreCorto}
+                onChange={(e) => setNombreCorto(e.target.value)}
+                placeholder="SIAA"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-bold"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Nombre Completo de la Plataforma / Institución
+              </label>
+              <input
+                type="text"
+                value={nombreCompleto}
+                onChange={(e) => setNombreCompleto(e.target.value)}
+                placeholder="Sistema Integral de Asesorías Académicas"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-semibold"
+              />
+            </div>
+
+            <div className="sm:col-span-3">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Subtítulo de Portada / Acceso
+              </label>
+              <input
+                type="text"
+                value={subtitulo}
+                onChange={(e) => setSubtitulo(e.target.value)}
+                placeholder="Plataforma Institucional de Tutoría, Acompañamiento y Rezago Pedagógico"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Scheduling Rules */}
         <div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
             <Settings className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
-            1. Reglas de Duración y Horarios Universitarios
+            2. Reglas de Duración y Horarios Universitarios
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
             <div>
@@ -140,9 +350,10 @@ export const ConfiguracionView: React.FC = () => {
           </div>
         </div>
 
+        {/* Section 3: Request Policies */}
         <div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-100 dark:border-slate-800">
-            2. Políticas de Solicitud y Notificaciones
+            3. Políticas de Solicitud y Notificaciones
           </h2>
           <div className="space-y-4 mt-4">
             <div>
@@ -184,7 +395,7 @@ export const ConfiguracionView: React.FC = () => {
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white font-bold rounded-lg shadow-xs transition-colors"
           >
             <Save className="w-4 h-4 text-amber-400" />
-            Guardar Cambios
+            Guardar Cambios en Base de Datos
           </button>
         </div>
       </form>
@@ -196,7 +407,7 @@ export const ConfiguracionView: React.FC = () => {
           Restablecimiento de Datos de Demostración
         </h3>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Si desea volver a cargar los datos institucionales iniciales (usuarios, carreras, asesorías de prueba y catálogos), puede restablecer la base de datos local en cualquier momento.
+          Si desea volver a cargar los datos institucionales iniciales (usuarios, carreras, logotipo, asesorías de prueba y catálogos), puede restablecer la base de datos local en cualquier momento.
         </p>
 
         <button
@@ -214,7 +425,7 @@ export const ConfiguracionView: React.FC = () => {
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleResetData}
         title="¿Restablecer datos de prueba?"
-        message="Esta acción repondrá todos los registros iniciales de alumnos, docentes, materias y asesorías predeterminadas."
+        message="Esta acción repondrá todos los registros iniciales de alumnos, docentes, materias, logotipo y asesorías predeterminadas."
         confirmLabel="Sí, restablecer"
         cancelLabel="Cancelar"
         variant="warning"

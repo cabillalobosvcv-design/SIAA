@@ -12,7 +12,8 @@ import {
   Notification,
   AuditLog,
   FilterParams,
-  UserRole
+  UserRole,
+  InstitutionalConfig
 } from '../types/siaa';
 import {
   INITIAL_USERS,
@@ -43,8 +44,27 @@ const STORAGE_KEYS = {
   DISP_ESP: 'siaa_disp_especificas',
   ASESORIAS: 'siaa_asesorias',
   NOTIFICATIONS: 'siaa_notifications',
-  AUDIT: 'siaa_audit_logs'
+  AUDIT: 'siaa_audit_logs',
+  CONFIG: 'siaa_institutional_config'
 };
+
+export const DEFAULT_INSTITUTIONAL_CONFIG: InstitutionalConfig = {
+  nombreCorto: 'SIAA',
+  nombreCompleto: 'Sistema Integral de Asesorías Académicas',
+  subtitulo: 'Plataforma Institucional de Tutoría, Acompañamiento y Rezago Pedagógico',
+  logoURL: undefined,
+  duracionAsesoria: 60,
+  horaApertura: '07:00',
+  horaCierre: '21:00',
+  anticipacionHoras: 24,
+  notifCorreo: true
+};
+
+function emitDataEvent(eventName: 'siaa-config-updated' | 'siaa-users-updated'): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(eventName));
+  }
+}
 
 function getStored<T>(key: string, defaultVal: T): T {
   try {
@@ -159,6 +179,52 @@ export class SIAADataService {
 
   static getAuditLogs(): AuditLog[] {
     return getStored<AuditLog[]>(STORAGE_KEYS.AUDIT, INITIAL_AUDIT_LOGS);
+  }
+
+  static getInstitutionalConfig(): InstitutionalConfig {
+    const stored = getStored<InstitutionalConfig>(STORAGE_KEYS.CONFIG, DEFAULT_INSTITUTIONAL_CONFIG);
+    return {
+      ...DEFAULT_INSTITUTIONAL_CONFIG,
+      ...stored
+    };
+  }
+
+  static updateInstitutionalConfig(
+    updates: Partial<InstitutionalConfig>,
+    actor?: User
+  ): InstitutionalConfig {
+    const current = this.getInstitutionalConfig();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const updated: InstitutionalConfig = {
+      ...current,
+      ...updates,
+      fechaActualizacion: today
+    };
+
+    setStored(STORAGE_KEYS.CONFIG, updated);
+    emitDataEvent('siaa-config-updated');
+
+    if (actor) {
+      const logoChanged = 'logoURL' in updates && updates.logoURL !== current.logoURL;
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: logoChanged ? 'LOGOTIPO_INSTITUCIONAL_ACTUALIZADO' : 'CONFIGURACION_ACTUALIZADA',
+        modulo: 'Configuración',
+        documentoAfectado: updated.nombreCorto || 'SIAA',
+        detalles: logoChanged
+          ? updated.logoURL
+            ? 'Se actualizó el logotipo institucional en la base de datos.'
+            : 'Se restableció el logotipo institucional predeterminado.'
+          : `Parámetros institucionales actualizados (${updated.nombreCorto}).`
+      });
+    }
+
+    return updated;
   }
 
   // Audit Log recording
@@ -765,6 +831,7 @@ export class SIAADataService {
 
     list.push(newUser);
     setStored(STORAGE_KEYS.USERS, list);
+    emitDataEvent('siaa-users-updated');
 
     this.logAudit({
       usuarioId: actor.uid,
@@ -806,6 +873,7 @@ export class SIAADataService {
 
     list[idx] = mergedUser;
     setStored(STORAGE_KEYS.USERS, list);
+    emitDataEvent('siaa-users-updated');
 
     this.logAudit({
       usuarioId: actor.uid,
@@ -818,6 +886,40 @@ export class SIAADataService {
     });
 
     return mergedUser;
+  }
+
+  static updateUserPhoto(uid: string, fotoURL: string | undefined, actor: User): User | undefined {
+    const list = this.getUsers();
+    const idx = list.findIndex(u => u.uid === uid);
+    if (idx === -1) return undefined;
+
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    const updatedUser: User = {
+      ...list[idx],
+      fotoURL,
+      fechaActualizacion: today
+    };
+
+    list[idx] = updatedUser;
+    setStored(STORAGE_KEYS.USERS, list);
+    emitDataEvent('siaa-users-updated');
+
+    this.logAudit({
+      usuarioId: actor.uid,
+      usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+      rol: actor.rol,
+      accion: 'FOTO_PERFIL_ACTUALIZADA',
+      modulo: 'Perfil',
+      documentoAfectado: updatedUser.correo,
+      detalles: fotoURL
+        ? `Se actualizó la fotografía de perfil de ${updatedUser.nombre} ${updatedUser.apellidoPaterno}.`
+        : `Se eliminó la fotografía de perfil de ${updatedUser.nombre} ${updatedUser.apellidoPaterno}.`
+    });
+
+    return updatedUser;
   }
 
   static resetPassword(uid: string, _newPass: string, actor: User): void {
@@ -870,6 +972,7 @@ export class SIAADataService {
       });
     }
     setStored(STORAGE_KEYS.USERS, list);
+    emitDataEvent('siaa-users-updated');
   }
 
   static toggleUserStatus(uid: string, actor: User): User | undefined {
@@ -878,6 +981,7 @@ export class SIAADataService {
     if (user) {
       user.estado = user.estado === 'activo' ? 'inactivo' : 'activo';
       setStored(STORAGE_KEYS.USERS, list);
+      emitDataEvent('siaa-users-updated');
       this.logAudit({
         usuarioId: actor.uid,
         usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
@@ -897,6 +1001,7 @@ export class SIAADataService {
     if (!target) return false;
 
     setStored(STORAGE_KEYS.USERS, list.filter(u => u.uid !== uid));
+    emitDataEvent('siaa-users-updated');
 
     this.logAudit({
       usuarioId: actor.uid,
@@ -1109,6 +1214,7 @@ export class SIAADataService {
 
   static saveUsersBatch(users: User[]): void {
     setStored(STORAGE_KEYS.USERS, users);
+    emitDataEvent('siaa-users-updated');
   }
 
   static saveCarrerasBatch(carreras: Carrera[]): void {
@@ -1147,6 +1253,9 @@ export class SIAADataService {
     localStorage.removeItem(STORAGE_KEYS.ASESORIAS);
     localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
     localStorage.removeItem(STORAGE_KEYS.AUDIT);
+    localStorage.removeItem(STORAGE_KEYS.CONFIG);
+    emitDataEvent('siaa-config-updated');
+    emitDataEvent('siaa-users-updated');
   }
 
   // Filter application
@@ -1225,19 +1334,36 @@ export class SIAADataService {
     const pad = (n: number) => n.toString().padStart(2, '0');
     const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
+    const config = this.getInstitutionalConfig();
+    const shortName = (config.nombreCorto || 'SIAA').toUpperCase();
+    const fullName = (config.nombreCompleto || 'SISTEMA INTEGRAL DE ASESORÍAS ACADÉMICAS').toUpperCase();
+
     // Institutional Header
     doc.setFillColor(19, 78, 74); // Institutional Green #134e4a
     doc.rect(0, 0, 297, 24, 'F');
 
+    let textOffsetX = 14;
+    if (config.logoURL) {
+      try {
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(12, 3, 18, 18, 2, 2, 'F');
+        const format = config.logoURL.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(config.logoURL, format, 13, 4, 16, 16);
+        textOffsetX = 35;
+      } catch {
+        textOffsetX = 14;
+      }
+    }
+
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('SIAA — SISTEMA INTEGRAL DE ASESORÍAS ACADÉMICAS', 14, 11);
+    doc.text(`${shortName} — ${fullName}`, textOffsetX, 11, { maxWidth: 220 });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(218, 165, 32); // Gold accent
-    doc.text('DIRECCIÓN DE GESTIÓN Y SEGUIMIENTO ACADÉMICO UNIVERSITARIO', 14, 18);
+    doc.text('DIRECCIÓN DE GESTIÓN Y SEGUIMIENTO ACADÉMICO UNIVERSITARIO', textOffsetX, 18);
 
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
@@ -1307,6 +1433,10 @@ export class SIAADataService {
     const now = new Date();
     const printDate = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
 
+    const config = this.getInstitutionalConfig();
+    const shortName = (config.nombreCorto || 'SIAA').toUpperCase();
+    const fullName = (config.nombreCompleto || 'SISTEMA INTEGRAL DE ASESORÍAS ACADÉMICAS').toUpperCase();
+
     // Header bar
     doc.setFillColor(19, 78, 74); // Emerald
     doc.rect(0, 0, 216, 32, 'F');
@@ -1315,19 +1445,32 @@ export class SIAADataService {
     doc.setFillColor(202, 138, 4); // Gold
     doc.rect(0, 32, 216, 2.5, 'F');
 
+    let textOffsetX = 14;
+    if (config.logoURL) {
+      try {
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(12, 5, 22, 22, 2.5, 2.5, 'F');
+        const format = config.logoURL.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(config.logoURL, format, 13.5, 6.5, 19, 19);
+        textOffsetX = 39;
+      } catch {
+        textOffsetX = 14;
+      }
+    }
+
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('SIAA — SISTEMA INTEGRAL DE ASESORÍAS ACADÉMICAS', 14, 14);
+    doc.setFontSize(15);
+    doc.text(`${shortName} — ${fullName}`, textOffsetX, 14, { maxWidth: 165 });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(254, 240, 138);
-    doc.text('FICHA OFICIAL DE ASESORÍA ACADÉMICA Y SEGUIMIENTO PEDAGÓGICO', 14, 22);
+    doc.text('FICHA OFICIAL DE ASESORÍA ACADÉMICA Y SEGUIMIENTO PEDAGÓGICO', textOffsetX, 22);
 
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
-    doc.text(`Impresión: ${printDate}`, 160, 22);
+    doc.text(`Impresión: ${printDate}`, 165, 27);
 
     // Folio & Status Badge Box
     doc.setFillColor(241, 245, 249);

@@ -23,6 +23,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types/siaa';
 import { getRoleMeta } from '../../utils/roles';
+import { UserAvatar } from '../common/UserAvatar';
+import { useInstitutionalConfig } from '../../hooks/useInstitutionalConfig';
 
 export type NavView =
   | 'dashboard'
@@ -67,6 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose
 }) => {
   const { currentRole, currentUser } = useAuth();
+  const config = useInstitutionalConfig();
 
   const allRoles: UserRole[] = [
     'admin',
@@ -205,14 +208,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Footer info in sidebar */}
         <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 text-[11px] text-slate-500 dark:text-slate-400">
-          <p className="font-semibold text-slate-700 dark:text-slate-200 truncate">
-            {currentUser?.nombre} {currentUser?.apellidoPaterno}
-          </p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
-            {currentUser?.correo}
-          </p>
+          <div className="flex items-center gap-2.5">
+            <UserAvatar
+              user={currentUser}
+              size="sm"
+              className="bg-emerald-900 text-amber-400 border border-amber-500/60"
+            />
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-700 dark:text-slate-200 truncate">
+                {currentUser?.nombre} {currentUser?.apellidoPaterno}
+              </p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                {currentUser?.correo}
+              </p>
+            </div>
+          </div>
           <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
-            <span>SIAA v2.4</span>
+            <span>{config.nombreCorto} v2.4</span>
             <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Ciclo 2026-3</span>
           </div>
         </div>

@@ -242,3 +242,17 @@ export interface FilterParams {
   modalidad?: string;
   aulaId?: string;
 }
+
+export interface InstitutionalConfig {
+  nombreCorto: string;
+  nombreCompleto: string;
+  subtitulo: string;
+  logoURL?: string;
+  duracionAsesoria: number;
+  horaApertura: string;
+  horaCierre: string;
+  anticipacionHoras: number;
+  notifCorreo: boolean;
+  fechaActualizacion?: string;
+}
+
