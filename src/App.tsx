@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavView } from './components/layout/Sidebar';
-import { DashboardView } from './components/dashboard/DashboardView';
+import { DashboardView, NavigationFilterOptions } from './components/dashboard/DashboardView';
 import { SolicitudesList } from './components/solicitudes/SolicitudesList';
 import { SolicitudFormModal } from './components/solicitudes/SolicitudFormModal';
 import { AsignacionModal } from './components/solicitudes/AsignacionModal';
@@ -37,10 +37,17 @@ function SIAAApp() {
   const [advisoryToFollowUp, setAdvisoryToFollowUp] = useState<Asesoria | null>(null);
   const [bulkEntity, setBulkEntity] = useState<BulkEntityType>('usuarios');
   const [dataVersion, setDataVersion] = useState(0);
+  const [navPreset, setNavPreset] = useState<{
+    estado?: string;
+    fecha?: string;
+    carreraId?: string;
+    key: number;
+  }>({ key: 0 });
 
   useEffect(() => {
     setCurrentView('dashboard');
     setIsSidebarOpen(false);
+    setNavPreset(prev => ({ key: prev.key + 1 }));
   }, [currentUser?.uid]);
 
   // Re-fetch advisory when needed
@@ -53,12 +60,18 @@ function SIAAApp() {
     return <LoginView />;
   }
 
-  const handleNavigate = (view: NavView) => {
+  const handleNavigate = (view: NavView, options?: NavigationFilterOptions) => {
     if (view === 'solicitar') {
       setEditingSolicitud(null);
       setIsNewSolicitudModalOpen(true);
       return;
     }
+    setNavPreset(prev => ({
+      estado: options?.estado,
+      fecha: options?.fecha,
+      carreraId: options?.carreraId,
+      key: prev.key + 1
+    }));
     setCurrentView(view);
   };
 
@@ -127,6 +140,8 @@ function SIAAApp() {
               onOpenNewModal={handleOpenCreateSolicitud}
               onOpenEditModal={handleOpenEditSolicitud}
               onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
+              initialEstado={navPreset.estado}
+              presetKey={navPreset.key}
               refreshKey={dataVersion}
             />
           )}
@@ -138,6 +153,10 @@ function SIAAApp() {
               onOpenEditModal={handleOpenEditSolicitud}
               onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
               isHistoryView={false}
+              initialEstado={navPreset.estado}
+              initialFecha={navPreset.fecha}
+              initialCarrera={navPreset.carreraId}
+              presetKey={navPreset.key}
               refreshKey={dataVersion}
             />
           )}
@@ -149,6 +168,10 @@ function SIAAApp() {
               onOpenEditModal={handleOpenEditSolicitud}
               onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
               isHistoryView={true}
+              initialEstado={navPreset.estado}
+              initialFecha={navPreset.fecha}
+              initialCarrera={navPreset.carreraId}
+              presetKey={navPreset.key}
               refreshKey={dataVersion}
             />
           )}
@@ -160,6 +183,10 @@ function SIAAApp() {
               onOpenEditModal={handleOpenEditSolicitud}
               onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
               isHistoryView={false}
+              initialEstado={navPreset.estado}
+              initialFecha={navPreset.fecha}
+              initialCarrera={navPreset.carreraId}
+              presetKey={navPreset.key}
               refreshKey={dataVersion}
             />
           )}

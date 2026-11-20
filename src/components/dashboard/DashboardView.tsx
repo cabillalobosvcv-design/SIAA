@@ -11,8 +11,11 @@ import {
   FileSpreadsheet,
   Layers,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  UserCheck,
+  ClipboardList
 } from 'lucide-react';
+import { NavView } from '../layout/Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { SIAADataService } from '../../services/siaaService';
@@ -39,8 +42,14 @@ import {
   Legend
 } from 'recharts';
 
+export interface NavigationFilterOptions {
+  estado?: string;
+  fecha?: string;
+  carreraId?: string;
+}
+
 interface DashboardViewProps {
-  onNavigate: (view: any) => void;
+  onNavigate: (view: NavView, options?: NavigationFilterOptions) => void;
   onSelectAdvisory: (id: string) => void;
   onOpenSolicitudModal: () => void;
 }
@@ -57,6 +66,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const materias = SIAADataService.getMaterias();
   const carreras = SIAADataService.getCarreras();
   const aulas = SIAADataService.getAulas();
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const chartGridColor = isDark ? '#334155' : '#e2e8f0';
   const chartTickColor = isDark ? '#94a3b8' : '#475569';
@@ -88,6 +98,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // ----------------------------------------------------
   if (currentRole === 'alumno') {
     const misAsesorias = asesorias.filter(a => a.alumnoId === currentUser?.uid);
+    const misAsesoriasHoy = misAsesorias.filter(
+      a =>
+        a.fechaProgramada === todayStr &&
+        (a.estado === 'confirmada' || a.estado === 'asignada' || a.estado === 'en_proceso')
+    );
     const pendientes = misAsesorias.filter(a => a.estado === 'pendiente' || a.estado === 'en_revision');
     const proximas = misAsesorias.filter(a => a.estado === 'confirmada' || a.estado === 'asignada');
     const realizadas = misAsesorias.filter(a => a.estado === 'realizada' || a.estado === 'cerrada');
@@ -134,37 +149,87 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Counter KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Solicitudes Pendientes</p>
-              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendientes.length}</p>
+        {/* Clickable Summary Widgets (Alumno) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button
+            type="button"
+            onClick={() => onNavigate('asesorias', { fecha: todayStr })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mis Asesorías Hoy</p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{misAsesoriasHoy.length}</p>
+              </div>
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400">
+                <Clock className="w-6 h-6" />
+              </div>
             </div>
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400">
-              <AlertCircle className="w-6 h-6" />
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+              <span>{misAsesoriasHoy.length > 0 ? 'Ver agenda de hoy' : 'Revisar sesiones'}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Próximas</p>
-              <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{proximas.length}</p>
+          <button
+            type="button"
+            onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Solicitudes Pendientes</p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendientes.length}</p>
+              </div>
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400">
+                <AlertCircle className="w-6 h-6" />
+              </div>
             </div>
-            <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-teal-700 dark:text-teal-400">
-              <Calendar className="w-6 h-6" />
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
+              <span>Ir a Mis Solicitudes</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Realizadas</p>
-              <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas.length}</p>
+          <button
+            type="button"
+            onClick={() => onNavigate('asesorias', { estado: 'confirmada' })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Próximas</p>
+                <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{proximas.length}</p>
+              </div>
+              <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-teal-700 dark:text-teal-400">
+                <Calendar className="w-6 h-6" />
+              </div>
             </div>
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-800 dark:text-emerald-400">
-              <CheckCircle2 className="w-6 h-6" />
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-teal-700 dark:text-teal-400">
+              <span>Ver confirmadas</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
-          </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('historial')}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Realizadas</p>
+                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas.length}</p>
+              </div>
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-800 dark:text-emerald-400">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
+              <span>Ir al Historial</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
         </div>
 
         {/* Próxima Asesoría Destacada */}
@@ -313,8 +378,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .map(id => carreras.find(c => c.id === id))
       .filter((c): c is NonNullable<typeof c> => Boolean(c));
     const misAsesorias = asesorias.filter(a => a.docenteAsignadoId === currentUser?.uid);
-    const todayStr = new Date().toISOString().split('T')[0];
     const hoy = misAsesorias.filter(a => a.fechaProgramada === todayStr && (a.estado === 'confirmada' || a.estado === 'asignada' || a.estado === 'en_proceso'));
+    const pendientesSeguimiento = misAsesorias.filter(
+      a => a.estado === 'confirmada' || a.estado === 'en_proceso' || (a.estado === 'realizada' && !a.seguimiento)
+    );
     const proximas = misAsesorias.filter(a => (a.fechaProgramada || '') >= todayStr && a.fechaProgramada !== todayStr && (a.estado === 'confirmada' || a.estado === 'asignada'));
     const realizadas = misAsesorias.filter(a => a.estado === 'realizada' || a.estado === 'cerrada');
     const dispRecurrentes = SIAADataService.getDisponibilidadesRecurrentes(currentUser?.uid);
@@ -385,39 +452,87 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Counter KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Asesorías de Hoy</p>
+        {/* Clickable Summary Widgets (Docentes) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <button
+            type="button"
+            onClick={() => onNavigate('asesorias', { fecha: todayStr })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Mis Asesorías Hoy</p>
             <div className="flex items-center justify-between mt-2">
               <span className="text-2xl font-bold text-amber-700 dark:text-amber-400">{hoy.length}</span>
               <span className="p-2.5 bg-amber-50 dark:bg-amber-950/60 rounded-lg text-amber-700 dark:text-amber-400"><Clock className="w-5 h-5" /></span>
             </div>
-          </div>
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+              <span>Ir a sesiones de hoy</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('seguimiento', { estado: 'sin_seguimiento' })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pend. de Seguimiento</p>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{pendientesSeguimiento.length}</span>
+              <span className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg text-emerald-800 dark:text-emerald-400"><ClipboardList className="w-5 h-5" /></span>
+            </div>
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
+              <span>Registrar seguimiento</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('asesorias', { estado: 'confirmada' })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Próximas Sesiones</p>
             <div className="flex items-center justify-between mt-2">
               <span className="text-2xl font-bold text-teal-700 dark:text-teal-400">{proximas.length}</span>
               <span className="p-2.5 bg-teal-50 dark:bg-teal-950/60 rounded-lg text-teal-700 dark:text-teal-400"><Calendar className="w-5 h-5" /></span>
             </div>
-          </div>
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-teal-700 dark:text-teal-400">
+              <span>Ver agenda próxima</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('historial')}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Asesorías Realizadas</p>
             <div className="flex items-center justify-between mt-2">
               <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{realizadas.length}</span>
               <span className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg text-emerald-800 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /></span>
             </div>
-          </div>
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
+              <span>Ir al historial</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('disponibilidad')}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Horarios Registrados</p>
             <div className="flex items-center justify-between mt-2">
               <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{dispRecurrentes.length}</span>
               <span className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300"><Layers className="w-5 h-5" /></span>
             </div>
-          </div>
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <span>Gestionar horarios</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
         </div>
 
         {/* Asesorías de hoy / próximas list */}
@@ -429,7 +544,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 Asesorías de Hoy / En Curso
               </h2>
-              <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Fecha: {todayStr}</span>
+              <button
+                type="button"
+                onClick={() => onNavigate('asesorias', { fecha: todayStr })}
+                className="text-xs text-emerald-800 dark:text-emerald-400 font-semibold hover:underline"
+              >
+                Fecha: {todayStr} →
+              </button>
             </div>
 
             {hoy.length === 0 ? (
@@ -543,6 +664,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       u => isTeachingRole(u.rol) && u.estado === 'activo' && userMatchesCareerScope(u, activeScopeIds)
     ).length;
     const pendientes = filteredByCarrera.filter(a => a.estado === 'pendiente' || a.estado === 'en_revision');
+    const pendientesAsignar = filteredByCarrera.filter(
+      a => !a.docenteAsignadoId && (a.estado === 'pendiente' || a.estado === 'en_revision' || a.estado === 'aprobada')
+    );
+    const programadasHoy = filteredByCarrera.filter(
+      a => a.fechaProgramada === todayStr && (a.estado === 'confirmada' || a.estado === 'asignada' || a.estado === 'en_proceso')
+    );
     const aprobadas = filteredByCarrera.filter(a => a.estado === 'aprobada' || a.estado === 'asignada' || a.estado === 'confirmada');
     const realizadas = filteredByCarrera.filter(a => a.estado === 'realizada' || a.estado === 'cerrada');
 
@@ -578,6 +705,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     const scopeCodesLabel = availableCarreras.map(c => c.codigo).join(', ');
     const selectedCareerObj = carreras.find(c => c.id === selectedCarrera);
+    const activeCareerParam = selectedCarrera !== 'all' ? selectedCarrera : undefined;
 
     return (
       <div className="space-y-6 animate-fadeIn">
@@ -628,7 +756,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <button
               type="button"
-              onClick={() => onNavigate('solicitudes')}
+              onClick={() => onNavigate('solicitudes', { estado: 'sin_asignar' })}
               className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
             >
               <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -646,37 +774,144 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Executive Stats Cards */}
+        {/* Actionable Summary Widgets (Dirección / Jefatura) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <button
+            type="button"
+            onClick={() => onNavigate('solicitudes', { estado: 'sin_asignar' })}
+            className="bg-amber-50/70 dark:bg-amber-950/30 p-5 rounded-xl border border-amber-200 dark:border-amber-800/80 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase">Asesorías Pendientes de Asignar</p>
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">{pendientesAsignar.length}</p>
+                <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-1">
+                  Solicitudes sin docente o espacio asignado
+                </p>
+              </div>
+              <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+                <UserCheck className="w-5 h-5" />
+              </span>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-amber-200/70 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-bold text-amber-900 dark:text-amber-300">
+              <span>Ir a asignar docente</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('asesorias', { fecha: todayStr, carreraId: activeCareerParam })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-teal-800 dark:text-teal-300 uppercase">Asesorías Programadas Hoy</p>
+                <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{programadasHoy.length}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Agenda del día ({todayStr})
+                </p>
+              </div>
+              <span className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 shrink-0">
+                <Clock className="w-5 h-5" />
+              </span>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold text-teal-700 dark:text-teal-400">
+              <span>Ver asesorías de hoy</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('calendario')}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Agenda y Calendario Activo</p>
+                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{aprobadas.length}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Sesiones aprobadas y confirmadas
+                </p>
+              </div>
+              <span className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 shrink-0">
+                <Calendar className="w-5 h-5" />
+              </span>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold text-emerald-800 dark:text-emerald-400">
+              <span>Abrir calendario mensual</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
+        </div>
+
+        {/* Executive Stats Cards (Clickable) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('reportes')}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Alumnos Registrados</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalAlumnos}</p>
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Nivel 7 en alcance</p>
-          </div>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium flex items-center justify-between">
+              <span>Nivel 7 en alcance</span>
+              <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+            </p>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate(currentRole === 'jefe_carrera' ? 'disponibilidad' : 'reportes')}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Docentes Asesores</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalDocentes}</p>
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Niveles 4, 5 y 6 adscritos</p>
-          </div>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium flex items-center justify-between">
+              <span>Niveles 4, 5 y 6 adscritos</span>
+              <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+            </p>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pendientes Revisión</p>
             <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendientes.length}</p>
-            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 font-medium">Por autorizar</p>
-          </div>
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 font-medium flex items-center justify-between">
+              <span>Por autorizar</span>
+              <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+            </p>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('asesorias', { estado: 'activas', carreraId: activeCareerParam })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Aprobadas / Agendadas</p>
             <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{aprobadas.length}</p>
-            <p className="text-[11px] text-teal-700 dark:text-teal-400 mt-1 font-medium">En proceso de atención</p>
-          </div>
+            <p className="text-[11px] text-teal-700 dark:text-teal-400 mt-1 font-medium flex items-center justify-between">
+              <span>En proceso de atención</span>
+              <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+            </p>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('historial', { carreraId: activeCareerParam })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Realizadas y Cerradas</p>
             <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas.length}</p>
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium">Con seguimiento formal</p>
-          </div>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium flex items-center justify-between">
+              <span>Ver historial</span>
+              <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+            </p>
+          </button>
         </div>
 
         {/* Charts Grid */}
@@ -829,6 +1064,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const totalAlumnos = users.filter(u => u.rol === 'alumno').length;
   const totalDocentes = users.filter(u => isTeachingRole(u.rol)).length;
   const totalDirectivos = users.filter(u => u.rol === 'director' || u.rol === 'jefe_carrera').length;
+  const pendientesAsignarAdmin = asesorias.filter(
+    a => !a.docenteAsignadoId && (a.estado === 'pendiente' || a.estado === 'en_revision' || a.estado === 'aprobada')
+  );
+  const programadasHoyAdmin = asesorias.filter(
+    a => a.fechaProgramada === todayStr && (a.estado === 'confirmada' || a.estado === 'asignada' || a.estado === 'en_proceso')
+  );
+  const pendientesSeguimientoAdmin = asesorias.filter(
+    a => a.estado === 'confirmada' || a.estado === 'en_proceso' || (a.estado === 'realizada' && !a.seguimiento)
+  );
   const solicitudesPendientes = asesorias.filter(a => a.estado === 'pendiente' || a.estado === 'en_revision').length;
   const asesoriasAprobadas = asesorias.filter(a => a.estado === 'aprobada' || a.estado === 'asignada' || a.estado === 'confirmada').length;
   const asesoriasRealizadas = asesorias.filter(a => a.estado === 'realizada' || a.estado === 'cerrada').length;
@@ -900,7 +1144,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onNavigate('solicitudes')}
+            onClick={() => onNavigate('solicitudes', { estado: 'sin_asignar' })}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-emerald-950 text-xs font-bold shadow-xs transition-colors"
           >
             <AlertCircle className="w-3.5 h-3.5" />
@@ -909,43 +1153,176 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Metrics Cards (Requirement 21 & 42) */}
+      {/* Actionable Operational Summary Widgets (Admin) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <button
+          type="button"
+          onClick={() => onNavigate('solicitudes', { estado: 'sin_asignar' })}
+          className="bg-amber-50/70 dark:bg-amber-950/30 p-5 rounded-xl border border-amber-200 dark:border-amber-800/80 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase">Asesorías Pendientes de Asignar</p>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">{pendientesAsignarAdmin.length}</p>
+              <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">Sin docente asignado aún</p>
+            </div>
+            <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+              <UserCheck className="w-5 h-5" />
+            </span>
+          </div>
+          <div className="mt-3 pt-2 border-t border-amber-200/70 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-bold text-amber-900 dark:text-amber-300">
+            <span>Ir a Solicitudes por asignar</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('asesorias', { fecha: todayStr })}
+          className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold text-teal-800 dark:text-teal-300 uppercase">Asesorías Programadas Hoy</p>
+              <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{programadasHoyAdmin.length}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Agenda de hoy ({todayStr})</p>
+            </div>
+            <span className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 shrink-0">
+              <Clock className="w-5 h-5" />
+            </span>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold text-teal-700 dark:text-teal-400">
+            <span>Ver sesiones de hoy</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
+          className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Por Autorizar / Revisión</p>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{solicitudesPendientes}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Esperando dictamen académico</p>
+            </div>
+            <span className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </span>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400">
+            <span>Autorizar solicitudes</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('asesorias', { estado: 'sin_seguimiento' })}
+          className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Pendientes de Seguimiento</p>
+              <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{pendientesSeguimientoAdmin.length}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Sesiones activas o sin ficha</p>
+            </div>
+            <span className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 shrink-0">
+              <ClipboardList className="w-5 h-5" />
+            </span>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold text-emerald-800 dark:text-emerald-400">
+            <span>Ir a Asesorías</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+      </div>
+
+      {/* Metrics Cards (Clickable) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <button
+          type="button"
+          onClick={() => onNavigate('usuarios')}
+          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
           <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Alumnos</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalAlumnos}</p>
-        </div>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 font-semibold flex items-center gap-1">
+            Ver usuarios <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
+          </p>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <button
+          type="button"
+          onClick={() => onNavigate('usuarios')}
+          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
           <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Personal Docente</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalDocentes}</p>
           <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Directivos/Jefes: {totalDirectivos}</p>
-        </div>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <button
+          type="button"
+          onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
+          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
           <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Solicitudes Pend.</p>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{solicitudesPendientes}</p>
-        </div>
+          <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 font-semibold flex items-center gap-1">
+            Revisar <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
+          </p>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <button
+          type="button"
+          onClick={() => onNavigate('asesorias', { estado: 'activas' })}
+          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
           <p className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase">Aprobadas/Prog.</p>
           <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{asesoriasAprobadas}</p>
-        </div>
+          <p className="text-[10px] text-teal-700 dark:text-teal-400 mt-0.5 font-semibold flex items-center gap-1">
+            Ver activas <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
+          </p>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <button
+          type="button"
+          onClick={() => onNavigate('asesorias', { estado: 'realizada' })}
+          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
           <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 uppercase">Realizadas</p>
           <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{asesoriasRealizadas}</p>
-        </div>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 font-semibold flex items-center gap-1">
+            Consultar <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
+          </p>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <button
+          type="button"
+          onClick={() => onNavigate('asesorias', { estado: 'cancelada' })}
+          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-rose-500 dark:hover:border-rose-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
           <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-400 uppercase">Canceladas</p>
           <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">{asesoriasCanceladas}</p>
-        </div>
+          <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5 font-semibold flex items-center gap-1">
+            Ver detalle <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
+          </p>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <button
+          type="button"
+          onClick={() => onNavigate('reportes')}
+          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+        >
           <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Alumnos Atendidos</p>
           <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">{uniqueStudents}</p>
-        </div>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 font-semibold flex items-center gap-1">
+            Ir a Reportes <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
+          </p>
+        </button>
       </div>
 
       {/* Visual Charts (Requirement 21) */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
 import { Asesoria, EstadoAsesoria } from '../../types/siaa';
@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   Calendar,
   Edit2,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
@@ -28,6 +29,10 @@ interface AsesoriasListProps {
   onOpenEditModal?: (asesoria: Asesoria) => void;
   onOpenAssignModal?: (asesoria: Asesoria) => void;
   isHistoryView?: boolean;
+  initialEstado?: string;
+  initialFecha?: string;
+  initialCarrera?: string;
+  presetKey?: number;
   refreshKey?: number;
 }
 
@@ -37,15 +42,28 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   onOpenEditModal,
   onOpenAssignModal,
   isHistoryView = false,
+  initialEstado,
+  initialFecha = '',
+  initialCarrera = 'all',
+  presetKey = 0,
   refreshKey = 0
 }) => {
   const { currentUser, currentRole } = useAuth();
   const [search, setSearch] = useState('');
-  const [filterEstado, setFilterEstado] = useState<string>(isHistoryView ? 'realizada' : 'all');
-  const [filterCarrera, setFilterCarrera] = useState<string>('all');
+  const [filterEstado, setFilterEstado] = useState<string>(
+    initialEstado || (isHistoryView ? 'realizada' : 'all')
+  );
+  const [filterFecha, setFilterFecha] = useState<string>(initialFecha || '');
+  const [filterCarrera, setFilterCarrera] = useState<string>(initialCarrera || 'all');
   const [filterDocente, setFilterDocente] = useState<string>('all');
   const [refreshTick, setRefreshTick] = useState(0);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<Asesoria | null>(null);
+
+  useEffect(() => {
+    setFilterEstado(initialEstado || (isHistoryView ? 'realizada' : 'all'));
+    setFilterFecha(initialFecha || '');
+    setFilterCarrera(initialCarrera || 'all');
+  }, [initialEstado, initialFecha, initialCarrera, presetKey, isHistoryView]);
 
   void refreshKey;
   void refreshTick;
@@ -91,8 +109,28 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   }
 
   // State filter
-  if (filterEstado !== 'all') {
+  if (filterEstado === 'activas') {
+    displayList = displayList.filter(
+      a =>
+        a.estado === 'aprobada' ||
+        a.estado === 'asignada' ||
+        a.estado === 'confirmada' ||
+        a.estado === 'en_proceso'
+    );
+  } else if (filterEstado === 'sin_seguimiento') {
+    displayList = displayList.filter(
+      a =>
+        a.estado === 'confirmada' ||
+        a.estado === 'en_proceso' ||
+        (a.estado === 'realizada' && !a.seguimiento)
+    );
+  } else if (filterEstado !== 'all') {
     displayList = displayList.filter(a => a.estado === filterEstado);
+  }
+
+  // Date filter
+  if (filterFecha) {
+    displayList = displayList.filter(a => a.fechaProgramada === filterFecha);
   }
 
   // Career filter
@@ -184,12 +222,22 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
             >
               <option value="all">Todos los Estados</option>
+              <option value="activas">Aprobadas / Programadas</option>
+              <option value="sin_seguimiento">Pendientes de Seguimiento</option>
               <option value="confirmada">Confirmadas</option>
               <option value="en_proceso">En Proceso</option>
               <option value="realizada">Realizadas</option>
               <option value="cerrada">Cerradas</option>
               <option value="cancelada">Canceladas</option>
             </select>
+
+            <input
+              type="date"
+              value={filterFecha}
+              onChange={(e) => setFilterFecha(e.target.value)}
+              title="Filtrar por fecha programada"
+              className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+            />
 
             <select
               value={filterCarrera}
@@ -214,8 +262,41 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                 ))}
               </select>
             )}
+
+            {(filterEstado !== 'all' || filterFecha || filterCarrera !== 'all' || filterDocente !== 'all' || search.trim()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterEstado(isHistoryView ? 'realizada' : 'all');
+                  setFilterFecha('');
+                  setFilterCarrera('all');
+                  setFilterDocente('all');
+                  setSearch('');
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                title="Limpiar filtros"
+              >
+                <X className="w-3.5 h-3.5" />
+                Limpiar
+              </button>
+            )}
           </div>
         </div>
+
+        {filterFecha && (
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-300">
+            <span>
+              Mostrando asesorías programadas para la fecha: <strong className="font-mono">{filterFecha}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setFilterFecha('')}
+              className="font-bold hover:underline"
+            >
+              Ver todas las fechas
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Table */}
