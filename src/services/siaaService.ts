@@ -1471,21 +1471,37 @@ export class SIAADataService {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const pad = (n: number) => n.toString().padStart(2, '0');
     const now = new Date();
-    const printDate = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+    const printDate = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
     const config = this.getInstitutionalConfig();
     const shortName = (config.nombreCorto || 'SIAA').toUpperCase();
     const fullName = (config.nombreCompleto || 'SISTEMA INTEGRAL DE ASESORÍAS ACADÉMICAS').toUpperCase();
 
+    const pageWidth = 215.9;
+    const marginX = 14;
+    const contentWidth = pageWidth - marginX * 2;
+    const maxY = 250;
+
+    const drawPageFooter = () => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        `${shortName} • Expediente oficial de tutorías y asesorías académicas • Folio ${asesoria.folio}`,
+        marginX,
+        269
+      );
+    };
+
     // Header bar
     doc.setFillColor(19, 78, 74); // Emerald
-    doc.rect(0, 0, 216, 32, 'F');
+    doc.rect(0, 0, pageWidth, 32, 'F');
 
     // Gold accent stripe
     doc.setFillColor(202, 138, 4); // Gold
-    doc.rect(0, 32, 216, 2.5, 'F');
+    doc.rect(0, 32, pageWidth, 2.5, 'F');
 
-    let textOffsetX = 14;
+    let textOffsetX = marginX;
     if (config.logoURL) {
       try {
         doc.setFillColor(255, 255, 255);
@@ -1494,222 +1510,205 @@ export class SIAADataService {
         doc.addImage(config.logoURL, format, 13.5, 6.5, 19, 19);
         textOffsetX = 39;
       } catch {
-        textOffsetX = 14;
+        textOffsetX = marginX;
       }
     }
 
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text(`${shortName} — ${fullName}`, textOffsetX, 14, { maxWidth: 165 });
+    doc.setFontSize(13.5);
+    doc.text(`${shortName} — ${fullName}`, textOffsetX, 13.5, { maxWidth: pageWidth - textOffsetX - 12 });
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(254, 240, 138);
     doc.text('FICHA OFICIAL DE ASESORÍA ACADÉMICA Y SEGUIMIENTO PEDAGÓGICO', textOffsetX, 22);
 
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(255, 255, 255);
-    doc.text(`Impresión: ${printDate}`, 165, 27);
+    doc.text(`Impresión: ${printDate}`, pageWidth - marginX, 28, { align: 'right' });
 
-    // Folio & Status Badge Box
+    // Folio, Status & Priority Box
     doc.setFillColor(241, 245, 249);
-    doc.roundedRect(14, 40, 188, 16, 2, 2, 'F');
+    doc.roundedRect(marginX, 40, contentWidth, 16, 2, 2, 'F');
     doc.setTextColor(19, 78, 74);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(`FOLIO: ${asesoria.folio}`, 20, 50);
+    doc.setFontSize(11.5);
+    doc.text(`FOLIO: ${asesoria.folio}`, 19, 49.5);
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(`ESTADO:`, 110, 50);
+    doc.text('ESTADO:', 92, 49.5);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
-    doc.text(asesoria.estado.toUpperCase().replace('_', ' '), 130, 50);
+    doc.text(asesoria.estado.toUpperCase().replace('_', ' '), 109, 49.5);
 
-    // Section 1: Datos del Alumno y Académicos
-    let currentY = 64;
-    doc.setFillColor(226, 232, 240);
-    doc.rect(14, currentY, 188, 7, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(19, 78, 74);
-    doc.text('1. INFORMACIÓN DEL ALUMNO Y PROGRAMA ACADÉMICO', 18, currentY + 5);
-
-    currentY += 12;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(71, 85, 105);
-    doc.text('Nombre del Alumno:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('PRIORIDAD:', 153, 49.5);
     doc.setTextColor(15, 23, 42);
-    doc.text(asesoria.alumnoNombre, 55, currentY);
+    doc.text((asesoria.prioridad || 'media').toUpperCase(), 175, 49.5);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Matrícula:', 130, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(asesoria.matricula, 150, currentY);
+    let currentY = 63;
 
-    currentY += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Carrera:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(asesoria.carreraNombre, 55, currentY, { maxWidth: 140 });
+    const ensureSpace = (neededHeight: number) => {
+      if (currentY + neededHeight > maxY) {
+        drawPageFooter();
+        doc.addPage();
+        doc.setFillColor(19, 78, 74);
+        doc.rect(0, 0, pageWidth, 12, 'F');
+        doc.setFillColor(202, 138, 4);
+        doc.rect(0, 12, pageWidth, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(`${shortName} — Ficha de Asesoría ${asesoria.folio} (Continuación)`, marginX, 8);
+        currentY = 22;
+      }
+    };
 
-    currentY += 8;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Grupo:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(asesoria.grupoNombre, 55, currentY);
+    const drawSectionHeader = (title: string) => {
+      ensureSpace(14);
+      doc.setFillColor(226, 232, 240);
+      doc.rect(marginX, currentY, contentWidth, 7, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(19, 78, 74);
+      doc.text(title, marginX + 4, currentY + 4.8);
+      currentY += 11.5;
+    };
 
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Cuatrimestre:', 130, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(`${asesoria.cuatrimestreNumero}° Cuatrimestre`, 155, currentY);
+    const drawWrappedField = (label: string, value: string, labelWidth = 42) => {
+      const textValue = (value || 'N/A').trim() || 'N/A';
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      const valueX = marginX + 4 + labelWidth;
+      const availableWidth = contentWidth - 8 - labelWidth;
+      const lines = doc.splitTextToSize(textValue, availableWidth) as string[];
+      const blockHeight = Math.max(6, lines.length * 4.3 + 2);
+      ensureSpace(blockHeight);
 
-    // Section 2: Datos de la Asesoría
-    currentY += 10;
-    doc.setFillColor(226, 232, 240);
-    doc.rect(14, currentY, 188, 7, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(19, 78, 74);
-    doc.text('2. DETALLES DE LA ASESORÍA Y PROGRAMACIÓN', 18, currentY + 5);
-
-    currentY += 12;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(71, 85, 105);
-    doc.text('Materia:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(`${asesoria.materiaNombre} (${asesoria.materiaCodigo})`, 55, currentY);
-
-    currentY += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Docente Asesor:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(asesoria.docenteAsignadoNombre || 'Por asignar', 55, currentY);
-
-    currentY += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Fecha y Horario:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    const fechaHora = asesoria.fechaProgramada ? `${asesoria.fechaProgramada}  (${asesoria.horaInicio} - ${asesoria.horaTermino} hrs)` : 'No programada';
-    doc.text(fechaHora, 55, currentY);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Modalidad:', 130, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text((asesoria.modalidad || 'presencial').toUpperCase(), 150, currentY);
-
-    currentY += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Aula / Espacio:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(asesoria.aulaNombre || 'Por definir', 55, currentY);
-
-    currentY += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(71, 85, 105);
-    doc.text('Temas solicitados:', 18, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(asesoria.temasDificultad, 55, currentY, { maxWidth: 140 });
-
-    // Section 3: Seguimiento y Resultados
-    currentY += 12;
-    doc.setFillColor(226, 232, 240);
-    doc.rect(14, currentY, 188, 7, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(19, 78, 74);
-    doc.text('3. RESULTADOS PEDAGÓGICOS Y SEGUIMIENTO DEL DOCENTE', 18, currentY + 5);
-
-    currentY += 12;
-    if (asesoria.seguimiento) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
-      doc.text('Temas Trabajados:', 18, currentY);
+      doc.text(label, marginX + 4, currentY);
+
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
-      doc.text(asesoria.seguimiento.temasTrabajados, 55, currentY, { maxWidth: 140 });
+      doc.text(lines, valueX, currentY);
+      currentY += blockHeight;
+    };
 
-      currentY += 10;
+    const drawTwoColumnRow = (label1: string, value1: string, label2: string, value2: string) => {
+      ensureSpace(7);
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
-      doc.text('Dificultades:', 18, currentY);
+      doc.text(label1, marginX + 4, currentY);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
-      doc.text(asesoria.seguimiento.dificultadesDetectadas, 55, currentY, { maxWidth: 140 });
-
-      currentY += 10;
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(71, 85, 105);
-      doc.text('Resultado Obtenido:', 18, currentY);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(19, 78, 74);
-      doc.text(asesoria.seguimiento.resultado.toUpperCase().replace('_', ' '), 55, currentY);
+      const col1Lines = doc.splitTextToSize(value1 || 'N/A', 62) as string[];
+      doc.text(col1Lines, marginX + 38, currentY);
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(71, 85, 105);
-      doc.text('¿Requiere nueva asesoría?:', 120, currentY);
+      doc.text(label2, 120, currentY);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
-      doc.text(asesoria.seguimiento.requiereNuevaAsesoria ? 'SÍ' : 'NO', 170, currentY);
+      const col2Lines = doc.splitTextToSize(value2 || 'N/A', 52) as string[];
+      doc.text(col2Lines, 148, currentY);
 
-      currentY += 8;
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(71, 85, 105);
-      doc.text('Recomendaciones:', 18, currentY);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(15, 23, 42);
-      doc.text(asesoria.seguimiento.recomendaciones, 55, currentY, { maxWidth: 140 });
+      const maxLines = Math.max(col1Lines.length, col2Lines.length);
+      currentY += Math.max(6.5, maxLines * 4.3 + 2);
+    };
+
+    // Section 1: Datos del Alumno y Académicos
+    drawSectionHeader('1. INFORMACIÓN DEL ALUMNO Y PROGRAMA ACADÉMICO');
+    drawTwoColumnRow('Alumno:', asesoria.alumnoNombre, 'Matrícula:', asesoria.matricula);
+    drawWrappedField('Carrera:', asesoria.carreraNombre, 34);
+    drawTwoColumnRow('Grupo:', asesoria.grupoNombre, 'Cuatrimestre:', `${asesoria.cuatrimestreNumero}° Cuatrimestre`);
+    currentY += 2;
+
+    // Section 2: Datos de la Asesoría
+    drawSectionHeader('2. DETALLES DE LA ASESORÍA Y PROGRAMACIÓN');
+    drawWrappedField('Materia:', `${asesoria.materiaNombre} (${asesoria.materiaCodigo})`, 34);
+    drawTwoColumnRow(
+      'Docente Asesor:',
+      asesoria.docenteAsignadoNombre || 'Por asignar',
+      'Modalidad:',
+      (asesoria.modalidad || 'presencial').toUpperCase()
+    );
+    const fechaHora = asesoria.fechaProgramada
+      ? `${asesoria.fechaProgramada} (${asesoria.horaInicio} - ${asesoria.horaTermino} hrs)`
+      : 'No programada';
+    drawTwoColumnRow('Fecha y Horario:', fechaHora, 'Aula / Espacio:', asesoria.aulaNombre || 'Por definir');
+    drawWrappedField('Motivo:', asesoria.motivo, 34);
+    drawWrappedField('Temas solicitados:', asesoria.temasDificultad, 34);
+    if (asesoria.observaciones) {
+      drawWrappedField('Observaciones:', asesoria.observaciones, 34);
+    }
+    if (asesoria.autorizadaPor) {
+      const authSummary = `${asesoria.autorizadaPor}${asesoria.fechaAutorizacion ? ` (${asesoria.fechaAutorizacion})` : ''}${asesoria.observacionesAutorizacion ? ` — "${asesoria.observacionesAutorizacion}"` : ''}`;
+      drawWrappedField('Autorización:', authSummary, 34);
+    }
+    currentY += 2;
+
+    // Section 3: Seguimiento y Resultados
+    drawSectionHeader('3. RESULTADOS PEDAGÓGICOS Y SEGUIMIENTO DEL DOCENTE');
+    if (asesoria.seguimiento) {
+      drawWrappedField('Temas Trabajados:', asesoria.seguimiento.temasTrabajados, 40);
+      drawWrappedField('Dificultades:', asesoria.seguimiento.dificultadesDetectadas, 40);
+      drawWrappedField('Actividades:', asesoria.seguimiento.actividadesRealizadas, 40);
+      drawWrappedField('Recomendaciones:', asesoria.seguimiento.recomendaciones, 40);
+      drawTwoColumnRow(
+        'Resultado:',
+        asesoria.seguimiento.resultado.toUpperCase().replace('_', ' '),
+        'Nueva asesoría:',
+        asesoria.seguimiento.requiereNuevaAsesoria ? 'SÍ (Programar refuerzo)' : 'NO'
+      );
+      drawWrappedField('Fecha Seguimiento:', asesoria.seguimiento.fechaSeguimiento || 'N/A', 40);
+      if (asesoria.seguimiento.evidencias && asesoria.seguimiento.evidencias.length > 0) {
+        const evidenciasText = asesoria.seguimiento.evidencias
+          .map(e => `${e.nombre}${e.tamanio ? ` (${e.tamanio})` : ''}`)
+          .join(', ');
+        drawWrappedField('Evidencias:', evidenciasText, 40);
+      }
     } else {
+      ensureSpace(10);
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(8.5);
       doc.setTextColor(100, 116, 139);
-      doc.text('La asesoría aún no cuenta con registro de seguimiento por parte del docente asesor asignado.', 18, currentY);
+      doc.text(
+        'La asesoría aún no cuenta con registro de seguimiento por parte del docente asesor asignado.',
+        marginX + 4,
+        currentY
+      );
+      currentY += 8;
     }
 
-    // Signatures Section
-    const signY = 230;
+    // Signatures Section (always keep together and clear of content)
+    const neededSignSpace = 34;
+    if (currentY + neededSignSpace > maxY) {
+      drawPageFooter();
+      doc.addPage();
+      currentY = 30;
+    }
+    const signY = Math.max(currentY + 20, 224);
     doc.setDrawColor(148, 163, 184);
-    doc.line(24, signY, 80, signY);
-    doc.line(130, signY, 190, signY);
+    doc.line(24, signY, 88, signY);
+    doc.line(128, signY, 192, signY);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(71, 85, 105);
-    doc.text('FIRMA DEL DOCENTE ASESOR', 30, signY + 5);
-    doc.text('FIRMA DEL ALUMNO ASESORADO', 134, signY + 5);
+    doc.text('FIRMA DEL DOCENTE ASESOR', 56, signY + 5, { align: 'center' });
+    doc.text('FIRMA DEL ALUMNO ASESORADO', 160, signY + 5, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
-    doc.text(asesoria.docenteAsignadoNombre || 'Nombre y Firma', 30, signY + 9);
-    doc.text(asesoria.alumnoNombre, 134, signY + 9);
+    doc.text(asesoria.docenteAsignadoNombre || 'Nombre y Firma', 56, signY + 9.5, { align: 'center', maxWidth: 66 });
+    doc.text(asesoria.alumnoNombre, 160, signY + 9.5, { align: 'center', maxWidth: 66 });
 
-    // Document footer
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
-    doc.text('Este documento forma parte del expediente oficial de tutorías y asesorías académicas institucionales.', 14, 260);
+    drawPageFooter();
 
     doc.save(`Ficha_Asesoria_${asesoria.folio}.pdf`);
   }

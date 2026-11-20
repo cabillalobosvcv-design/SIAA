@@ -1,17 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Asesoria } from '../../types/siaa';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
+import { useInstitutionalConfig } from '../../hooks/useInstitutionalConfig';
 import { canRegisterSeguimiento } from '../../utils/roles';
+import { printFichaAsesoria } from '../../utils/printFicha';
 import {
   FileDown,
-  User,
+  Printer,
   GraduationCap,
-  Calendar,
-  Clock,
-  DoorOpen,
   BookOpen,
   CheckCircle2,
   FileText,
@@ -34,12 +33,27 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
   onOpenSeguimiento
 }) => {
   const { currentRole } = useAuth();
+  const institutionalConfig = useInstitutionalConfig();
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!actionMessage) return;
+    const timer = setTimeout(() => setActionMessage(null), 2800);
+    return () => clearTimeout(timer);
+  }, [actionMessage]);
+
   if (!asesoria) return null;
 
   const canFollowUp = canRegisterSeguimiento(currentRole);
 
   const handleDownloadPDF = () => {
     SIAADataService.exportFichaPDF(asesoria);
+    setActionMessage('Ficha exportada a PDF correctamente.');
+  };
+
+  const handlePrintFicha = () => {
+    printFichaAsesoria(asesoria, institutionalConfig);
+    setActionMessage('Preparando vista de impresión...');
   };
 
   return (
@@ -54,7 +68,7 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
         
         {/* Header Action Strip */}
         <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="font-mono font-bold text-sm text-emerald-950 dark:text-emerald-200 bg-emerald-100/80 dark:bg-emerald-900/60 px-2.5 py-1 rounded">
               {asesoria.folio}
             </span>
@@ -62,14 +76,24 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
             <PriorityBadge prioridad={asesoria.prioridad} />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrintFicha}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-semibold shadow-xs transition-colors"
+              title="Imprimir ficha oficial de la sesión"
+            >
+              <Printer className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
+              Imprimir
+            </button>
             <button
               type="button"
               onClick={handleDownloadPDF}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold shadow-xs transition-colors"
+              title="Descargar respaldo digital en formato PDF"
             >
               <FileDown className="w-4 h-4 text-amber-400" />
-              Descargar Ficha PDF
+              Exportar a PDF
             </button>
             {onOpenSeguimiento && canFollowUp && (asesoria.estado === 'confirmada' || asesoria.estado === 'en_proceso' || asesoria.estado === 'realizada') && (
               <button
@@ -86,6 +110,13 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
             )}
           </div>
         </div>
+
+        {actionMessage && (
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 font-medium animate-fadeIn">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{actionMessage}</span>
+          </div>
+        )}
 
         {/* Section 1: Datos del Alumno */}
         <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
@@ -266,17 +297,35 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
           <p className="text-[10px] text-slate-400 dark:text-slate-500">
-            Expediente SIAA • Coordinación de Calidad Académica
+            Expediente {institutionalConfig.nombreCorto || 'SIAA'} • Coordinación de Calidad Académica
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors"
-          >
-            Cerrar Ficha
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrintFicha}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Imprimir
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-900 hover:bg-emerald-800 text-white font-semibold rounded-lg transition-colors"
+            >
+              <FileDown className="w-3.5 h-3.5 text-amber-400" />
+              Exportar a PDF
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors"
+            >
+              Cerrar Ficha
+            </button>
+          </div>
         </div>
 
       </div>
