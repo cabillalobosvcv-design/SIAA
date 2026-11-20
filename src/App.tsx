@@ -17,9 +17,11 @@ import { CatalogosView, CatalogoTipo } from './components/admin/CatalogosView';
 import { ReportesView } from './components/admin/ReportesView';
 import { AuditoriaView } from './components/admin/AuditoriaView';
 import { ConfiguracionView } from './components/admin/ConfiguracionView';
+import { CargaMasivaView } from './components/admin/CargaMasivaView';
 import { ProfileView } from './components/profile/ProfileView';
 import { LoginView } from './components/auth/LoginView';
 import { SIAADataService } from './services/siaaService';
+import { BulkEntityType } from './services/bulkImportService';
 import { Asesoria } from './types/siaa';
 
 function SIAAApp() {
@@ -33,6 +35,7 @@ function SIAAApp() {
   const [editingSolicitud, setEditingSolicitud] = useState<Asesoria | null>(null);
   const [advisoryToAssign, setAdvisoryToAssign] = useState<Asesoria | null>(null);
   const [advisoryToFollowUp, setAdvisoryToFollowUp] = useState<Asesoria | null>(null);
+  const [bulkEntity, setBulkEntity] = useState<BulkEntityType>('usuarios');
   const [dataVersion, setDataVersion] = useState(0);
 
   // Re-fetch advisory when needed
@@ -75,6 +78,11 @@ function SIAAApp() {
   const handleOpenEditSolicitud = (asesoria: Asesoria) => {
     setEditingSolicitud(asesoria);
     setIsNewSolicitudModalOpen(true);
+  };
+
+  const handleOpenBulkImport = (entity: BulkEntityType) => {
+    setBulkEntity(entity);
+    setCurrentView('carga_masiva');
   };
 
   return (
@@ -156,11 +164,11 @@ function SIAAApp() {
           )}
 
           {currentView === 'disponibilidad' && (
-            <DisponibilidadView />
+            <DisponibilidadView onOpenBulkImport={() => handleOpenBulkImport('disponibilidad')} />
           )}
 
           {currentView === 'usuarios' && (
-            <UsuariosView />
+            <UsuariosView onOpenBulkImport={() => handleOpenBulkImport('usuarios')} />
           )}
 
           {(currentView === 'carreras' ||
@@ -168,7 +176,17 @@ function SIAAApp() {
             currentView === 'grupos' ||
             currentView === 'cuatrimestres' ||
             currentView === 'aulas') && (
-            <CatalogosView initialType={currentView as CatalogoTipo} />
+            <CatalogosView
+              initialType={currentView as CatalogoTipo}
+              onOpenBulkImport={(catalog) => handleOpenBulkImport(catalog)}
+            />
+          )}
+
+          {currentView === 'carga_masiva' && (
+            <CargaMasivaView
+              initialEntity={bulkEntity}
+              onImportSuccess={() => setDataVersion(v => v + 1)}
+            />
           )}
 
           {currentView === 'reportes' && (

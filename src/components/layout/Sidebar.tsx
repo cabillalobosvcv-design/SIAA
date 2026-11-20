@@ -17,7 +17,8 @@ import {
   ClipboardList,
   UserCircle,
   PlusCircle,
-  ShieldCheck
+  ShieldCheck,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types/siaa';
@@ -30,6 +31,7 @@ export type NavView =
   | 'cuatrimestres'
   | 'materias'
   | 'aulas'
+  | 'carga_masiva'
   | 'disponibilidad'
   | 'solicitar'
   | 'solicitudes'
@@ -89,6 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'cuatrimestres', label: 'Cuatrimestres', icon: CalendarDays, roles: ['admin'] },
     { id: 'materias', label: 'Materias', icon: BookOpen, roles: ['admin'] },
     { id: 'aulas', label: 'Aulas y Espacios', icon: DoorOpen, roles: ['admin'] },
+    { id: 'carga_masiva', label: 'Carga Masiva y Plantillas', icon: Upload, roles: ['admin'] },
 
     // Reports (Admin, Director)
     { id: 'reportes', label: 'Reportes y Estadísticas', icon: FileSpreadsheet, roles: ['admin', 'director'] },

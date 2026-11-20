@@ -1045,6 +1045,34 @@ export class SIAADataService {
     return true;
   }
 
+  static saveUsersBatch(users: User[]): void {
+    setStored(STORAGE_KEYS.USERS, users);
+  }
+
+  static saveCarrerasBatch(carreras: Carrera[]): void {
+    setStored(STORAGE_KEYS.CARRERAS, carreras);
+  }
+
+  static saveMateriasBatch(materias: Materia[]): void {
+    setStored(STORAGE_KEYS.MATERIAS, materias);
+  }
+
+  static saveGruposBatch(grupos: Grupo[]): void {
+    setStored(STORAGE_KEYS.GRUPOS, grupos);
+  }
+
+  static saveCuatrimestresBatch(cuatrimestres: Cuatrimestre[]): void {
+    setStored(STORAGE_KEYS.CUATRIMESTRES, cuatrimestres);
+  }
+
+  static saveAulasBatch(aulas: Aula[]): void {
+    setStored(STORAGE_KEYS.AULAS, aulas);
+  }
+
+  static saveDisponibilidadRecurrenteBatch(items: DisponibilidadRecurrente[]): void {
+    setStored(STORAGE_KEYS.DISP_REC, items);
+  }
+
   static resetToSeedData(): void {
     localStorage.removeItem(STORAGE_KEYS.USERS);
     localStorage.removeItem(STORAGE_KEYS.CARRERAS);
