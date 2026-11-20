@@ -15,7 +15,8 @@ import {
   BookOpen,
   User as UserIcon,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -30,9 +31,11 @@ export const UsuariosView: React.FC = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<SIAAUser | null>(null);
   const [confirmDeactivateUser, setConfirmDeactivateUser] = useState<SIAAUser | null>(null);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<SIAAUser | null>(null);
   const [resetPassUser, setResetPassUser] = useState<SIAAUser | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [passSuccess, setPassSuccess] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Form fields
   const [nombre, setNombre] = useState('');
@@ -46,6 +49,7 @@ export const UsuariosView: React.FC = () => {
   const [grupoId, setGrupoId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
+  void refreshTick;
   const users = SIAADataService.getUsers();
   const carreras = SIAADataService.getCarreras();
   const grupos = SIAADataService.getGrupos();
@@ -138,12 +142,21 @@ export const UsuariosView: React.FC = () => {
     }
 
     setIsFormModalOpen(false);
+    setRefreshTick(t => t + 1);
   };
 
   const handleToggleActive = (userToToggle: SIAAUser) => {
     if (!currentUser) return;
     const newStatus = userToToggle.estado === 'activo' ? 'inactivo' : 'activo';
     SIAADataService.updateUser(userToToggle.uid, { estado: newStatus }, currentUser);
+    setRefreshTick(t => t + 1);
+  };
+
+  const handleDeleteUser = () => {
+    if (!confirmDeleteUser || !currentUser) return;
+    SIAADataService.deleteUser(confirmDeleteUser.uid, currentUser);
+    setConfirmDeleteUser(null);
+    setRefreshTick(t => t + 1);
   };
 
   const handleResetPasswordSubmit = (e: React.FormEvent) => {
@@ -321,6 +334,17 @@ export const UsuariosView: React.FC = () => {
                       >
                         {u.estado === 'activo' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                       </button>
+
+                      {u.uid !== currentUser?.uid && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteUser(u)}
+                          className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors"
+                          title="Eliminar usuario permanentemente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -531,6 +555,17 @@ export const UsuariosView: React.FC = () => {
         message={`El usuario "${confirmDeactivateUser?.nombre} ${confirmDeactivateUser?.apellidoPaterno}" (${confirmDeactivateUser?.correo}) perderá el acceso temporal al sistema SIAA.`}
         confirmLabel="Sí, desactivar"
         cancelLabel="Conservar activo"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteUser}
+        onClose={() => setConfirmDeleteUser(null)}
+        onConfirm={handleDeleteUser}
+        title="¿Eliminar usuario permanentemente?"
+        message={`Se eliminará la cuenta institucional de "${confirmDeleteUser?.nombre} ${confirmDeleteUser?.apellidoPaterno}" (${confirmDeleteUser?.correo}). Esta acción no se puede deshacer.`}
+        confirmLabel="Sí, eliminar usuario"
+        cancelLabel="Cancelar"
         variant="danger"
       />
     </div>

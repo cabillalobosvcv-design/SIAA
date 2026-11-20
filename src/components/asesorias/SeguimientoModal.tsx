@@ -11,6 +11,7 @@ import {
   FileText,
   AlertCircle
 } from 'lucide-react';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface SeguimientoModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const SeguimientoModal: React.FC<SeguimientoModalProps> = ({
   const [requiereNuevaAsesoria, setRequiereNuevaAsesoria] = useState(false);
   const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (asesoria) {
@@ -117,6 +119,14 @@ export const SeguimientoModal: React.FC<SeguimientoModalProps> = ({
       actor: currentUser
     });
 
+    onSuccess();
+    onClose();
+  };
+
+  const handleDeleteSeguimiento = () => {
+    if (!asesoria || !currentUser) return;
+    SIAADataService.deleteSeguimiento(asesoria.id, currentUser);
+    setIsDeleteConfirmOpen(false);
     onSuccess();
     onClose();
   };
@@ -277,23 +287,49 @@ export const SeguimientoModal: React.FC<SeguimientoModalProps> = ({
         </div>
 
         {/* Modal Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="px-5 py-2 bg-emerald-900 hover:bg-emerald-800 text-white font-bold rounded-lg shadow-xs flex items-center gap-2"
-          >
-            <CheckCircle2 className="w-4 h-4 text-amber-400" />
-            Guardar Seguimiento y Cerrar Asesoría
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div>
+            {asesoria.seguimiento && (
+              <button
+                type="button"
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Eliminar Seguimiento
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-emerald-900 hover:bg-emerald-800 text-white font-bold rounded-lg shadow-xs flex items-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4 text-amber-400" />
+              {asesoria.seguimiento ? 'Guardar Cambios' : 'Guardar Seguimiento y Cerrar Asesoría'}
+            </button>
+          </div>
         </div>
       </form>
+
+      <ConfirmDialog
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteSeguimiento}
+        title="¿Eliminar seguimiento registrado?"
+        message={`Se eliminará el registro de seguimiento y evaluación del folio ${asesoria.folio}, regresando la asesoría al estado Confirmada.`}
+        confirmLabel="Sí, eliminar seguimiento"
+        cancelLabel="Cancelar"
+        variant="danger"
+      />
     </Modal>
   );
 };

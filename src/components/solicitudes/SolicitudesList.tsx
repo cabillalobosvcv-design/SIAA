@@ -1,36 +1,42 @@
 import React, { useState } from 'react';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
-import { Asesoria, EstadoAsesoria, Prioridad } from '../../types/siaa';
+import { Asesoria } from '../../types/siaa';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
 import {
   Search,
-  Filter,
   PlusCircle,
   CheckCircle,
   XCircle,
   Clock,
   Eye,
-  Calendar,
-  AlertCircle
+  AlertCircle,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface SolicitudesListProps {
   onSelectAdvisory: (id: string) => void;
   onOpenNewModal: () => void;
+  onOpenEditModal: (asesoria: Asesoria) => void;
   onOpenAssignModal: (asesoria: Asesoria) => void;
+  refreshKey?: number;
 }
 
 export const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onSelectAdvisory,
   onOpenNewModal,
-  onOpenAssignModal
+  onOpenEditModal,
+  onOpenAssignModal,
+  refreshKey = 0
 }) => {
   const { currentUser, currentRole } = useAuth();
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>('all');
   const [filterPrioridad, setFilterPrioridad] = useState<string>('all');
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Authorization modal state
   const [authModalItem, setAuthModalItem] = useState<Asesoria | null>(null);
@@ -38,6 +44,12 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [authObservaciones, setAuthObservaciones] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Delete confirm state
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<Asesoria | null>(null);
+
+  // Use refreshKey & refreshTick to re-read stored records
+  void refreshKey;
+  void refreshTick;
   const asesorias = SIAADataService.getAsesorias();
 
   // Role based filtering: Students only see their own requests
@@ -87,9 +99,33 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
     setAuthModalItem(null);
     setAuthObservaciones('');
+    setRefreshTick(t => t + 1);
+  };
+
+  const handleDeleteSolicitud = () => {
+    if (!confirmDeleteItem || !currentUser) return;
+    SIAADataService.deleteAsesoria(confirmDeleteItem.id, currentUser);
+    setConfirmDeleteItem(null);
+    setRefreshTick(t => t + 1);
   };
 
   const canAuthorize = currentRole === 'admin' || currentRole === 'director';
+
+  const canEditSolicitud = (a: Asesoria) => {
+    if (canAuthorize) return true;
+    if (currentRole === 'alumno' && a.alumnoId === currentUser?.uid) {
+      return a.estado === 'pendiente' || a.estado === 'en_revision' || a.estado === 'rechazada';
+    }
+    return false;
+  };
+
+  const canDeleteSolicitud = (a: Asesoria) => {
+    if (canAuthorize) return true;
+    if (currentRole === 'alumno' && a.alumnoId === currentUser?.uid) {
+      return a.estado === 'pendiente' || a.estado === 'rechazada' || a.estado === 'cancelada';
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -100,7 +136,7 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
             {currentRole === 'alumno' ? 'Mis Solicitudes de Asesoría' : 'Gestión de Solicitudes Académicas'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Revisión, autorización, rechazo y asignación de folios institucionales para asesoría.
+            Revisión, autorización, modificación, eliminación y asignación de folios institucionales para asesoría.
           </p>
         </div>
 
@@ -213,6 +249,17 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
                           <Eye className="w-4 h-4" />
                         </button>
 
+                        {canEditSolicitud(a) && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenEditModal(a)}
+                            className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                            title="Modificar Solicitud"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+
                         {/* Authorization Actions (Admin, Director) */}
                         {canAuthorize && a.estado === 'pendiente' && (
                           <>
@@ -261,6 +308,17 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               Asignar
                             </button>
                           )}
+
+                        {canDeleteSolicitud(a) && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteItem(a)}
+                            className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-md transition-colors"
+                            title="Eliminar Solicitud"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -336,6 +394,18 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
           </form>
         </Modal>
       )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!confirmDeleteItem}
+        onClose={() => setConfirmDeleteItem(null)}
+        onConfirm={handleDeleteSolicitud}
+        title="¿Eliminar solicitud de asesoría?"
+        message={`Se eliminará permanentemente el registro ${confirmDeleteItem?.folio} (${confirmDeleteItem?.materiaNombre} — ${confirmDeleteItem?.alumnoNombre}). Esta acción quedará registrada en la bitácora de auditoría.`}
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };

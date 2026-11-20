@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
 import { Asesoria, EstadoAsesoria } from '../../types/siaa';
-import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
+import { StatusBadge } from '../common/StatusBadge';
 import {
   Search,
   FileSpreadsheet,
@@ -10,28 +10,38 @@ import {
   Eye,
   CheckCircle2,
   Calendar,
-  Clock,
-  Filter,
-  Layers,
-  XCircle
+  Edit2,
+  Trash2
 } from 'lucide-react';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface AsesoriasListProps {
   onSelectAdvisory: (id: string) => void;
   onOpenSeguimiento: (asesoria: Asesoria) => void;
+  onOpenEditModal?: (asesoria: Asesoria) => void;
+  onOpenAssignModal?: (asesoria: Asesoria) => void;
   isHistoryView?: boolean;
+  refreshKey?: number;
 }
 
 export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   onSelectAdvisory,
   onOpenSeguimiento,
-  isHistoryView = false
+  onOpenEditModal,
+  onOpenAssignModal,
+  isHistoryView = false,
+  refreshKey = 0
 }) => {
   const { currentUser, currentRole } = useAuth();
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>(isHistoryView ? 'realizada' : 'all');
   const [filterCarrera, setFilterCarrera] = useState<string>('all');
   const [filterDocente, setFilterDocente] = useState<string>('all');
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<Asesoria | null>(null);
+
+  void refreshKey;
+  void refreshTick;
 
   const asesorias = SIAADataService.getAsesorias();
   const carreras = SIAADataService.getCarreras();
@@ -92,7 +102,17 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
       currentUser,
       `Actualización de estado manual a ${newStatus} desde el listado institucional.`
     );
+    setRefreshTick(t => t + 1);
   };
+
+  const handleDeleteAsesoria = () => {
+    if (!confirmDeleteItem || !currentUser) return;
+    SIAADataService.deleteAsesoria(confirmDeleteItem.id, currentUser);
+    setConfirmDeleteItem(null);
+    setRefreshTick(t => t + 1);
+  };
+
+  const isAdminOrDir = currentRole === 'admin' || currentRole === 'director';
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -111,7 +131,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {isHistoryView
               ? 'Consulta de sesiones concluidas, folios cerrados y evaluaciones finales.'
-              : 'Programación, asistencia, evaluación pedagógica y fichas oficiales de asesoría.'}
+              : 'Programación, asistencia, modificación, evaluación pedagógica y fichas oficiales de asesoría.'}
           </p>
         </div>
 
@@ -206,90 +226,151 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                   </td>
                 </tr>
               ) : (
-                displayList.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 py-3.5 font-mono font-bold text-emerald-950 dark:text-emerald-300">
-                      {item.folio}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="font-semibold text-slate-900 dark:text-slate-100">{item.alumnoNombre}</p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{item.matricula}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="font-medium text-slate-800 dark:text-slate-200">{item.materiaNombre}</p>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.materiaCodigo}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="font-medium text-slate-800 dark:text-slate-200">{item.docenteAsignadoNombre || 'Sin asignar'}</p>
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <p className="font-semibold text-slate-700 dark:text-slate-200">{item.fechaProgramada || 'Por agendar'}</p>
-                      {item.horaInicio && (
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.horaInicio} - {item.horaTermino} hrs</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <p className="text-slate-700 dark:text-slate-200 font-medium">{item.aulaNombre || 'Aula asignada'}</p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{item.modalidad}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge estado={item.estado} />
-                    </td>
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onSelectAdvisory(item.id)}
-                          className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-                          title="Ver Ficha Completa"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                displayList.map(item => {
+                  const canEditBasic =
+                    isAdminOrDir ||
+                    (currentRole === 'alumno' &&
+                      item.alumnoId === currentUser?.uid &&
+                      (item.estado === 'pendiente' || item.estado === 'en_revision' || item.estado === 'rechazada'));
+                  const canReprogram =
+                    isAdminOrDir &&
+                    onOpenAssignModal &&
+                    (item.estado === 'aprobada' || item.estado === 'asignada' || item.estado === 'confirmada' || item.estado === 'en_proceso');
+                  const canDelete =
+                    isAdminOrDir ||
+                    (currentRole === 'alumno' &&
+                      item.alumnoId === currentUser?.uid &&
+                      (item.estado === 'pendiente' || item.estado === 'rechazada' || item.estado === 'cancelada'));
 
-                        <button
-                          type="button"
-                          onClick={() => SIAADataService.exportFichaPDF(item)}
-                          className="p-1.5 text-emerald-800 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-md transition-colors"
-                          title="Descargar Ficha en PDF"
-                        >
-                          <FileDown className="w-4 h-4" />
-                        </button>
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-4 py-3.5 font-mono font-bold text-emerald-950 dark:text-emerald-300">
+                        {item.folio}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-semibold text-slate-900 dark:text-slate-100">{item.alumnoNombre}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{item.matricula}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{item.materiaNombre}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.materiaCodigo}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{item.docenteAsignadoNombre || 'Sin asignar'}</p>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="font-semibold text-slate-700 dark:text-slate-200">{item.fechaProgramada || 'Por agendar'}</p>
+                        {item.horaInicio && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.horaInicio} - {item.horaTermino} hrs</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="text-slate-700 dark:text-slate-200 font-medium">{item.aulaNombre || 'Aula asignada'}</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{item.modalidad}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusBadge estado={item.estado} />
+                      </td>
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onSelectAdvisory(item.id)}
+                            className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                            title="Ver Ficha Completa"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
 
-                        {/* Seguimiento trigger for teacher or admin */}
-                        {(currentRole === 'docente' || currentRole === 'admin') &&
-                          (item.estado === 'confirmada' || item.estado === 'en_proceso' || item.estado === 'realizada') && (
+                          <button
+                            type="button"
+                            onClick={() => SIAADataService.exportFichaPDF(item)}
+                            className="p-1.5 text-emerald-800 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-md transition-colors"
+                            title="Descargar Ficha en PDF"
+                          >
+                            <FileDown className="w-4 h-4" />
+                          </button>
+
+                          {canEditBasic && onOpenEditModal && (
                             <button
                               type="button"
-                              onClick={() => onOpenSeguimiento(item)}
-                              className="px-2 py-1 bg-amber-500 text-emerald-950 font-bold rounded hover:bg-amber-400 flex items-center gap-1 shadow-2xs text-[11px]"
-                              title="Registrar o Editar Seguimiento"
+                              onClick={() => onOpenEditModal(item)}
+                              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                              title="Modificar datos de asesoría"
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              {item.seguimiento ? 'Editar Seg.' : 'Seguimiento'}
+                              <Edit2 className="w-4 h-4" />
                             </button>
                           )}
 
-                        {/* Direct status closing for Director or Admin */}
-                        {(currentRole === 'admin' || currentRole === 'director') &&
-                          item.estado === 'realizada' && (
+                          {canReprogram && (
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(item.id, 'cerrada')}
-                              className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-semibold rounded hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-[11px]"
-                              title="Cerrar Asesoría en Sistema"
+                              onClick={() => onOpenAssignModal(item)}
+                              className="p-1.5 text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-md transition-colors"
+                              title="Modificar docente, horario o aula"
                             >
-                              Cerrar
+                              <Calendar className="w-4 h-4" />
                             </button>
                           )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+
+                          {/* Seguimiento trigger for teacher or admin */}
+                          {(currentRole === 'docente' || currentRole === 'admin') &&
+                            (item.estado === 'confirmada' || item.estado === 'en_proceso' || item.estado === 'realizada') && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenSeguimiento(item)}
+                                className="px-2 py-1 bg-amber-500 text-emerald-950 font-bold rounded hover:bg-amber-400 flex items-center gap-1 shadow-2xs text-[11px]"
+                                title="Registrar o Editar Seguimiento"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                {item.seguimiento ? 'Editar Seg.' : 'Seguimiento'}
+                              </button>
+                            )}
+
+                          {/* Direct status closing for Director or Admin */}
+                          {isAdminOrDir &&
+                            item.estado === 'realizada' && (
+                              <button
+                                type="button"
+                                onClick={() => handleStatusChange(item.id, 'cerrada')}
+                                className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-semibold rounded hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-[11px]"
+                                title="Cerrar Asesoría en Sistema"
+                              >
+                                Cerrar
+                              </button>
+                            )}
+
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteItem(item)}
+                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-md transition-colors"
+                              title="Eliminar registro de asesoría"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteItem}
+        onClose={() => setConfirmDeleteItem(null)}
+        onConfirm={handleDeleteAsesoria}
+        title="¿Eliminar asesoría del sistema?"
+        message={`Se eliminará permanentemente la asesoría ${confirmDeleteItem?.folio} (${confirmDeleteItem?.alumnoNombre} — ${confirmDeleteItem?.materiaNombre}).`}
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };

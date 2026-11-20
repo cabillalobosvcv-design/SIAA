@@ -23,17 +23,20 @@ import { SIAADataService } from './services/siaaService';
 import { Asesoria } from './types/siaa';
 
 function SIAAApp() {
-  const { currentUser, currentRole } = useAuth();
+  const { currentUser } = useAuth();
   const [currentView, setCurrentView] = useState<NavView>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Modals state
   const [selectedAdvisoryId, setSelectedAdvisoryId] = useState<string | null>(null);
   const [isNewSolicitudModalOpen, setIsNewSolicitudModalOpen] = useState(false);
+  const [editingSolicitud, setEditingSolicitud] = useState<Asesoria | null>(null);
   const [advisoryToAssign, setAdvisoryToAssign] = useState<Asesoria | null>(null);
   const [advisoryToFollowUp, setAdvisoryToFollowUp] = useState<Asesoria | null>(null);
+  const [dataVersion, setDataVersion] = useState(0);
 
   // Re-fetch advisory when needed
+  void dataVersion;
   const selectedAdvisory = selectedAdvisoryId
     ? SIAADataService.getAsesoriaById(selectedAdvisoryId)
     : null;
@@ -44,6 +47,7 @@ function SIAAApp() {
 
   const handleNavigate = (view: NavView) => {
     if (view === 'solicitar') {
+      setEditingSolicitud(null);
       setIsNewSolicitudModalOpen(true);
       return;
     }
@@ -54,9 +58,23 @@ function SIAAApp() {
     setSelectedAdvisoryId(id);
   };
 
-  const handleNewSolicitudSuccess = (newId: string) => {
-    setSelectedAdvisoryId(newId);
-    setCurrentView('solicitudes');
+  const handleSolicitudSuccess = (savedId: string) => {
+    setDataVersion(v => v + 1);
+    if (!editingSolicitud) {
+      setSelectedAdvisoryId(savedId);
+      setCurrentView('solicitudes');
+    }
+    setEditingSolicitud(null);
+  };
+
+  const handleOpenCreateSolicitud = () => {
+    setEditingSolicitud(null);
+    setIsNewSolicitudModalOpen(true);
+  };
+
+  const handleOpenEditSolicitud = (asesoria: Asesoria) => {
+    setEditingSolicitud(asesoria);
+    setIsNewSolicitudModalOpen(true);
   };
 
   return (
@@ -86,15 +104,17 @@ function SIAAApp() {
             <DashboardView
               onNavigate={handleNavigate}
               onSelectAdvisory={handleSelectAdvisory}
-              onOpenSolicitudModal={() => setIsNewSolicitudModalOpen(true)}
+              onOpenSolicitudModal={handleOpenCreateSolicitud}
             />
           )}
 
           {currentView === 'solicitudes' && (
             <SolicitudesList
               onSelectAdvisory={handleSelectAdvisory}
-              onOpenNewModal={() => setIsNewSolicitudModalOpen(true)}
+              onOpenNewModal={handleOpenCreateSolicitud}
+              onOpenEditModal={handleOpenEditSolicitud}
               onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
+              refreshKey={dataVersion}
             />
           )}
 
@@ -102,7 +122,10 @@ function SIAAApp() {
             <AsesoriasList
               onSelectAdvisory={handleSelectAdvisory}
               onOpenSeguimiento={(a) => setAdvisoryToFollowUp(a)}
+              onOpenEditModal={handleOpenEditSolicitud}
+              onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
               isHistoryView={false}
+              refreshKey={dataVersion}
             />
           )}
 
@@ -110,7 +133,10 @@ function SIAAApp() {
             <AsesoriasList
               onSelectAdvisory={handleSelectAdvisory}
               onOpenSeguimiento={(a) => setAdvisoryToFollowUp(a)}
+              onOpenEditModal={handleOpenEditSolicitud}
+              onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
               isHistoryView={true}
+              refreshKey={dataVersion}
             />
           )}
 
@@ -118,7 +144,10 @@ function SIAAApp() {
             <AsesoriasList
               onSelectAdvisory={handleSelectAdvisory}
               onOpenSeguimiento={(a) => setAdvisoryToFollowUp(a)}
+              onOpenEditModal={handleOpenEditSolicitud}
+              onOpenAssignModal={(a) => setAdvisoryToAssign(a)}
               isHistoryView={false}
+              refreshKey={dataVersion}
             />
           )}
 
@@ -170,30 +199,36 @@ function SIAAApp() {
         onOpenSeguimiento={(a) => setAdvisoryToFollowUp(a)}
       />
 
-      {/* 2. Nueva Solicitud de Asesoría Form */}
+      {/* 2. Nueva / Editar Solicitud de Asesoría Form */}
       <SolicitudFormModal
         isOpen={isNewSolicitudModalOpen}
-        onClose={() => setIsNewSolicitudModalOpen(false)}
-        onSuccess={handleNewSolicitudSuccess}
+        onClose={() => {
+          setIsNewSolicitudModalOpen(false);
+          setEditingSolicitud(null);
+        }}
+        onSuccess={handleSolicitudSuccess}
+        editingAsesoria={editingSolicitud}
       />
 
-      {/* 3. Modal de Asignación de Horario / Docente / Aula */}
+      {/* 3. Modal de Asignación / Reprogramación de Horario / Docente / Aula */}
       <AsignacionModal
         isOpen={!!advisoryToAssign}
         onClose={() => setAdvisoryToAssign(null)}
         asesoria={advisoryToAssign}
         onSuccess={() => {
           setAdvisoryToAssign(null);
+          setDataVersion(v => v + 1);
         }}
       />
 
-      {/* 4. Modal de Registro de Seguimiento */}
+      {/* 4. Modal de Registro / Edición / Eliminación de Seguimiento */}
       <SeguimientoModal
         isOpen={!!advisoryToFollowUp}
         onClose={() => setAdvisoryToFollowUp(null)}
         asesoria={advisoryToFollowUp}
         onSuccess={() => {
           setAdvisoryToFollowUp(null);
+          setDataVersion(v => v + 1);
         }}
       />
     </div>

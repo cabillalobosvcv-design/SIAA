@@ -7,12 +7,11 @@ import {
   PlusCircle,
   Trash2,
   CheckCircle2,
-  XCircle,
   AlertCircle,
-  Layers,
-  Calendar
+  Edit2
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 export const DisponibilidadView: React.FC = () => {
   const { currentUser, currentRole } = useAuth();
@@ -24,19 +23,45 @@ export const DisponibilidadView: React.FC = () => {
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [diaSemana, setDiaSemana] = useState<DiaSemana>('Lunes');
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFin, setHoraFin] = useState('10:00');
   const [modalidad, setModalidad] = useState<Modalidad>('presencial');
   const [cupoMaximo, setCupoMaximo] = useState(3);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<DisponibilidadRecurrente | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
+  void refreshTick;
   const disponibilidades = SIAADataService.getDisponibilidadesRecurrentes(selectedDocenteId);
   const selectedDocente = docentes.find(d => d.uid === selectedDocenteId);
 
   const dias: DiaSemana[] = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-  const handleAddSlot = (e: React.FormEvent) => {
+  const openCreateModal = () => {
+    setEditingSlotId(null);
+    setDiaSemana('Lunes');
+    setHoraInicio('09:00');
+    setHoraFin('10:00');
+    setModalidad('presencial');
+    setCupoMaximo(3);
+    setErrorMsg(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (slot: DisponibilidadRecurrente) => {
+    setEditingSlotId(slot.id);
+    setDiaSemana(slot.diaSemana);
+    setHoraInicio(slot.horaInicio);
+    setHoraFin(slot.horaFin);
+    setModalidad(slot.modalidad || 'presencial');
+    setCupoMaximo(slot.cupoMaximo || 3);
+    setErrorMsg(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveSlot = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -50,10 +75,12 @@ export const DisponibilidadView: React.FC = () => {
       return;
     }
 
-    // Check overlaps
-    const existing = disponibilidades.filter(d => d.diaSemana === diaSemana && d.activo);
+    // Check overlaps excluding the slot being edited
+    const existing = disponibilidades.filter(
+      d => d.diaSemana === diaSemana && d.activo !== false && d.id !== editingSlotId
+    );
     const hasOverlap = existing.some(
-      s => (horaInicio < s.horaFin && horaFin > s.horaInicio)
+      s => horaInicio < s.horaFin && horaFin > s.horaInicio
     );
 
     if (hasOverlap) {
@@ -61,21 +88,35 @@ export const DisponibilidadView: React.FC = () => {
       return;
     }
 
-    SIAADataService.addDisponibilidadRecurrente({
-      docenteId: selectedDocenteId,
-      diaSemana,
-      horaInicio,
-      horaFin,
-      modalidad,
-      cupoMaximo,
-      activo: true
-    });
+    if (editingSlotId) {
+      SIAADataService.updateDisponibilidadRecurrente(editingSlotId, {
+        diaSemana,
+        horaInicio,
+        horaFin,
+        modalidad,
+        cupoMaximo
+      });
+    } else {
+      SIAADataService.addDisponibilidadRecurrente({
+        docenteId: selectedDocenteId,
+        diaSemana,
+        horaInicio,
+        horaFin,
+        modalidad,
+        cupoMaximo,
+        activo: true
+      });
+    }
 
     setIsModalOpen(false);
+    setRefreshTick(t => t + 1);
   };
 
-  const handleDeleteSlot = (id: string) => {
-    SIAADataService.deleteDisponibilidadRecurrente(id);
+  const handleConfirmDeleteSlot = () => {
+    if (!confirmDeleteSlot) return;
+    SIAADataService.deleteDisponibilidadRecurrente(confirmDeleteSlot.id);
+    setConfirmDeleteSlot(null);
+    setRefreshTick(t => t + 1);
   };
 
   return (
@@ -87,7 +128,7 @@ export const DisponibilidadView: React.FC = () => {
             {currentRole === 'docente' ? 'Mi Disponibilidad Semanal de Asesoría' : 'Gestión de Disponibilidad Docente'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Configura los días, franjas horarias y cupos máximos en que puedes atender a los alumnos.
+            Configura, modifica o elimina los días, franjas horarias y cupos máximos en que puedes atender a los alumnos.
           </p>
         </div>
 
@@ -106,10 +147,7 @@ export const DisponibilidadView: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => {
-              setIsModalOpen(true);
-              setErrorMsg(null);
-            }}
+            onClick={openCreateModal}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors"
           >
             <PlusCircle className="w-4 h-4 text-amber-400" />
@@ -152,14 +190,24 @@ export const DisponibilidadView: React.FC = () => {
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSlot(slot.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors"
-                        title="Eliminar bloque"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(slot)}
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-300 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
+                          title="Modificar bloque"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteSlot(slot)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors"
+                          title="Eliminar bloque"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -169,15 +217,15 @@ export const DisponibilidadView: React.FC = () => {
         })}
       </div>
 
-      {/* Add Slot Modal */}
+      {/* Add / Edit Slot Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Registrar Bloque de Disponibilidad Semanal"
+        title={editingSlotId ? 'Modificar Bloque de Disponibilidad Semanal' : 'Registrar Bloque de Disponibilidad Semanal'}
         subtitle={`Docente: ${selectedDocente?.nombre} ${selectedDocente?.apellidoPaterno}`}
         maxWidth="md"
       >
-        <form onSubmit={handleAddSlot} className="space-y-4 text-xs">
+        <form onSubmit={handleSaveSlot} className="space-y-4 text-xs">
           {errorMsg && (
             <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-lg flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
@@ -270,11 +318,22 @@ export const DisponibilidadView: React.FC = () => {
               className="px-4 py-2 bg-emerald-900 hover:bg-emerald-800 text-white font-bold rounded-lg shadow-xs flex items-center gap-1.5"
             >
               <CheckCircle2 className="w-4 h-4 text-amber-400" />
-              Guardar Disponibilidad
+              {editingSlotId ? 'Guardar Cambios' : 'Guardar Disponibilidad'}
             </button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteSlot}
+        onClose={() => setConfirmDeleteSlot(null)}
+        onConfirm={handleConfirmDeleteSlot}
+        title="¿Eliminar bloque de disponibilidad?"
+        message={`Se eliminará el horario ${confirmDeleteSlot?.diaSemana} de ${confirmDeleteSlot?.horaInicio} a ${confirmDeleteSlot?.horaFin} hrs.`}
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };

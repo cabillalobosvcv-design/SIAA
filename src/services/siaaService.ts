@@ -305,6 +305,71 @@ export class SIAADataService {
     return newAsesoria;
   }
 
+  static updateSolicitud(
+    asesoriaId: string,
+    updates: {
+      alumnoId: string;
+      alumnoNombre: string;
+      matricula: string;
+      carreraId: string;
+      carreraNombre: string;
+      grupoId: string;
+      grupoNombre: string;
+      cuatrimestreId: string;
+      cuatrimestreNumero: number;
+      materiaId: string;
+      materiaNombre: string;
+      materiaCodigo: string;
+      motivo: string;
+      temasDificultad: string;
+      prioridad: Asesoria['prioridad'];
+    },
+    actor: User
+  ): Asesoria | undefined {
+    const list = this.getAsesorias();
+    const idx = list.findIndex(a => a.id === asesoriaId);
+    if (idx === -1) return undefined;
+
+    const updatedAsesoria: Asesoria = {
+      ...list[idx],
+      ...updates
+    };
+    list[idx] = updatedAsesoria;
+    setStored(STORAGE_KEYS.ASESORIAS, list);
+
+    this.logAudit({
+      usuarioId: actor.uid,
+      usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+      rol: actor.rol,
+      accion: 'SOLICITUD_ACTUALIZADA',
+      modulo: 'Solicitudes',
+      documentoAfectado: updatedAsesoria.folio,
+      detalles: `Materia: ${updatedAsesoria.materiaNombre}, Prioridad: ${updatedAsesoria.prioridad}`
+    });
+
+    return updatedAsesoria;
+  }
+
+  static deleteAsesoria(asesoriaId: string, actor: User): boolean {
+    const list = this.getAsesorias();
+    const target = list.find(a => a.id === asesoriaId);
+    if (!target) return false;
+
+    setStored(STORAGE_KEYS.ASESORIAS, list.filter(a => a.id !== asesoriaId));
+
+    this.logAudit({
+      usuarioId: actor.uid,
+      usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+      rol: actor.rol,
+      accion: 'ASESORIA_ELIMINADA',
+      modulo: 'Asesorías',
+      documentoAfectado: target.folio,
+      detalles: `Registro eliminado (${target.alumnoNombre} - ${target.materiaNombre})`
+    });
+
+    return true;
+  }
+
   // Update asesoria
   static updateAsesoria(asesoria: Asesoria, actionUser: User, actionName: string, details?: string): void {
     const list = this.getAsesorias();
@@ -511,6 +576,21 @@ export class SIAADataService {
     return { success: true };
   }
 
+  static deleteSeguimiento(asesoriaId: string, actor: User): { success: boolean } {
+    const list = this.getAsesorias();
+    const asesoria = list.find(a => a.id === asesoriaId);
+    if (!asesoria || !asesoria.seguimiento) return { success: false };
+
+    const updated: Asesoria = {
+      ...asesoria,
+      seguimiento: undefined,
+      estado: asesoria.docenteAsignadoId ? 'confirmada' : 'pendiente'
+    };
+
+    this.updateAsesoria(updated, actor, 'SEGUIMIENTO_ELIMINADO', 'Se eliminó el seguimiento pedagógico registrado.');
+    return { success: true };
+  }
+
   // Close advisory (Admin / Director)
   static cerrarAsesoria(asesoriaId: string, actor: User): { success: boolean } {
     const list = this.getAsesorias();
@@ -569,6 +649,18 @@ export class SIAADataService {
     list.push(newDisp);
     setStored(STORAGE_KEYS.DISP_REC, list);
     return newDisp;
+  }
+
+  static updateDisponibilidadRecurrente(
+    id: string,
+    updates: Partial<Omit<DisponibilidadRecurrente, 'id'>>
+  ): DisponibilidadRecurrente | undefined {
+    const list = this.getDisponibilidadesRecurrentes();
+    const idx = list.findIndex(d => d.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...updates };
+    setStored(STORAGE_KEYS.DISP_REC, list);
+    return list[idx];
   }
 
   static saveDisponibilidadRecurrente(disp: DisponibilidadRecurrente): void {
@@ -737,6 +829,26 @@ export class SIAADataService {
     return user;
   }
 
+  static deleteUser(uid: string, actor: User): boolean {
+    const list = this.getUsers();
+    const target = list.find(u => u.uid === uid);
+    if (!target) return false;
+
+    setStored(STORAGE_KEYS.USERS, list.filter(u => u.uid !== uid));
+
+    this.logAudit({
+      usuarioId: actor.uid,
+      usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+      rol: actor.rol,
+      accion: 'USUARIO_ELIMINADO',
+      modulo: 'Usuarios',
+      documentoAfectado: target.correo,
+      detalles: `Usuario eliminado: ${target.nombre} ${target.apellidoPaterno} (${target.rol})`
+    });
+
+    return true;
+  }
+
   // Catalog methods
   static addCarrera(carrera: Omit<Carrera, 'id'>): Carrera {
     const list = this.getCarreras();
@@ -756,6 +868,25 @@ export class SIAADataService {
     list[idx] = { ...list[idx], ...updates };
     setStored(STORAGE_KEYS.CARRERAS, list);
     return list[idx];
+  }
+
+  static deleteCarrera(id: string, actor?: User): boolean {
+    const list = this.getCarreras();
+    const target = list.find(c => c.id === id);
+    if (!target) return false;
+    setStored(STORAGE_KEYS.CARRERAS, list.filter(c => c.id !== id));
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_CARRERA_ELIMINADA',
+        modulo: 'Catálogos',
+        documentoAfectado: target.codigo,
+        detalles: `Carrera eliminada: ${target.nombre}`
+      });
+    }
+    return true;
   }
 
   static addMateria(materia: Omit<Materia, 'id'>): Materia {
@@ -778,6 +909,25 @@ export class SIAADataService {
     return list[idx];
   }
 
+  static deleteMateria(id: string, actor?: User): boolean {
+    const list = this.getMaterias();
+    const target = list.find(m => m.id === id);
+    if (!target) return false;
+    setStored(STORAGE_KEYS.MATERIAS, list.filter(m => m.id !== id));
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_MATERIA_ELIMINADA',
+        modulo: 'Catálogos',
+        documentoAfectado: target.codigo,
+        detalles: `Materia eliminada: ${target.nombre}`
+      });
+    }
+    return true;
+  }
+
   static addAula(aula: Omit<Aula, 'id'>): Aula {
     const list = this.getAulas();
     const newAula: Aula = {
@@ -798,6 +948,25 @@ export class SIAADataService {
     return list[idx];
   }
 
+  static deleteAula(id: string, actor?: User): boolean {
+    const list = this.getAulas();
+    const target = list.find(a => a.id === id);
+    if (!target) return false;
+    setStored(STORAGE_KEYS.AULAS, list.filter(a => a.id !== id));
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_AULA_ELIMINADA',
+        modulo: 'Catálogos',
+        documentoAfectado: target.nombre,
+        detalles: `Aula eliminada: ${target.nombre} (${target.edificio})`
+      });
+    }
+    return true;
+  }
+
   static addGrupo(grupo: Omit<Grupo, 'id'>): Grupo {
     const list = this.getGrupos();
     const newGrupo: Grupo = {
@@ -807,6 +976,73 @@ export class SIAADataService {
     list.push(newGrupo);
     setStored(STORAGE_KEYS.GRUPOS, list);
     return newGrupo;
+  }
+
+  static updateGrupo(id: string, updates: Partial<Grupo>): Grupo | undefined {
+    const list = this.getGrupos();
+    const idx = list.findIndex(g => g.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...updates };
+    setStored(STORAGE_KEYS.GRUPOS, list);
+    return list[idx];
+  }
+
+  static deleteGrupo(id: string, actor?: User): boolean {
+    const list = this.getGrupos();
+    const target = list.find(g => g.id === id);
+    if (!target) return false;
+    setStored(STORAGE_KEYS.GRUPOS, list.filter(g => g.id !== id));
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_GRUPO_ELIMINADO',
+        modulo: 'Catálogos',
+        documentoAfectado: target.nombre,
+        detalles: `Grupo eliminado: ${target.nombre}`
+      });
+    }
+    return true;
+  }
+
+  static addCuatrimestre(cuatrimestre: Omit<Cuatrimestre, 'id'>): Cuatrimestre {
+    const list = this.getCuatrimestres();
+    const newCuat: Cuatrimestre = {
+      ...cuatrimestre,
+      id: `cuat-${Date.now()}`
+    };
+    list.push(newCuat);
+    setStored(STORAGE_KEYS.CUATRIMESTRES, list);
+    return newCuat;
+  }
+
+  static updateCuatrimestre(id: string, updates: Partial<Cuatrimestre>): Cuatrimestre | undefined {
+    const list = this.getCuatrimestres();
+    const idx = list.findIndex(cu => cu.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...updates };
+    setStored(STORAGE_KEYS.CUATRIMESTRES, list);
+    return list[idx];
+  }
+
+  static deleteCuatrimestre(id: string, actor?: User): boolean {
+    const list = this.getCuatrimestres();
+    const target = list.find(cu => cu.id === id);
+    if (!target) return false;
+    setStored(STORAGE_KEYS.CUATRIMESTRES, list.filter(cu => cu.id !== id));
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_CUATRIMESTRE_ELIMINADO',
+        modulo: 'Catálogos',
+        documentoAfectado: target.nombre || `${target.numero}°`,
+        detalles: `Cuatrimestre eliminado: ${target.nombre || target.numero}`
+      });
+    }
+    return true;
   }
 
   static resetToSeedData(): void {

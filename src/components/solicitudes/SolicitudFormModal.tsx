@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { useAuth } from '../../context/AuthContext';
 import { SIAADataService } from '../../services/siaaService';
-import { Prioridad } from '../../types/siaa';
+import { Asesoria, Prioridad } from '../../types/siaa';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 
 interface SolicitudFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (newId: string) => void;
+  onSuccess: (id: string) => void;
+  editingAsesoria?: Asesoria | null;
 }
 
 export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  editingAsesoria = null
 }) => {
   const { currentUser } = useAuth();
   const users = SIAADataService.getUsers();
@@ -25,18 +27,34 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
 
   // If current user is student, auto select them. Otherwise allow selecting student.
   const isStudent = currentUser?.rol === 'alumno';
-  const [selectedAlumnoId, setSelectedAlumnoId] = useState<string>(
-    isStudent && currentUser ? currentUser.uid : (users.find(u => u.rol === 'alumno')?.uid || '')
-  );
+  const defaultAlumnoId = isStudent && currentUser ? currentUser.uid : (users.find(u => u.rol === 'alumno')?.uid || '');
 
-  const alumnoObj = users.find(u => u.uid === selectedAlumnoId);
-
+  const [selectedAlumnoId, setSelectedAlumnoId] = useState<string>(defaultAlumnoId);
   const [materiaId, setMateriaId] = useState<string>(materias[0]?.id || '');
   const [motivo, setMotivo] = useState<string>('');
   const [temasDificultad, setTemasDificultad] = useState<string>('');
   const [prioridad, setPrioridad] = useState<Prioridad>('media');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    if (editingAsesoria) {
+      setSelectedAlumnoId(editingAsesoria.alumnoId);
+      setMateriaId(editingAsesoria.materiaId);
+      setMotivo(editingAsesoria.motivo);
+      setTemasDificultad(editingAsesoria.temasDificultad);
+      setPrioridad(editingAsesoria.prioridad);
+    } else {
+      setSelectedAlumnoId(defaultAlumnoId);
+      setMateriaId(materias[0]?.id || '');
+      setMotivo('');
+      setTemasDificultad('');
+      setPrioridad('media');
+    }
+    setErrorMsg(null);
+  }, [isOpen, editingAsesoria, defaultAlumnoId]);
+
+  const alumnoObj = users.find(u => u.uid === selectedAlumnoId);
   const selectedMateria = materias.find(m => m.id === materiaId);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -66,6 +84,33 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
     const carreraObj = carreras.find(c => c.id === alumnoObj.carreraId) || carreras[0];
     const grupoObj = grupos.find(g => g.id === alumnoObj.grupoId) || grupos[0];
     const cuatrimestreObj = cuatrimestres.find(c => c.id === alumnoObj.cuatrimestreId) || cuatrimestres[0];
+
+    if (editingAsesoria && currentUser) {
+      SIAADataService.updateSolicitud(
+        editingAsesoria.id,
+        {
+          alumnoId: alumnoObj.uid,
+          alumnoNombre: `${alumnoObj.nombre} ${alumnoObj.apellidoPaterno} ${alumnoObj.apellidoMaterno}`,
+          matricula: alumnoObj.matricula || 'S/M',
+          carreraId: carreraObj.id,
+          carreraNombre: carreraObj.nombre,
+          grupoId: grupoObj.id,
+          grupoNombre: grupoObj.nombre,
+          cuatrimestreId: cuatrimestreObj.id,
+          cuatrimestreNumero: cuatrimestreObj.numero,
+          materiaId: selectedMateria.id,
+          materiaNombre: selectedMateria.nombre,
+          materiaCodigo: selectedMateria.codigo,
+          motivo: motivo.trim(),
+          temasDificultad: temasDificultad.trim(),
+          prioridad
+        },
+        currentUser
+      );
+      onSuccess(editingAsesoria.id);
+      onClose();
+      return;
+    }
 
     const newAsesoria = SIAADataService.createSolicitud({
       fechaSolicitud: new Date().toISOString().split('T')[0],
@@ -97,8 +142,12 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Nueva Solicitud de Asesoría Académica"
-      subtitle="Complete los datos para generar el folio oficial de asesoría institucional"
+      title={editingAsesoria ? `Modificar Solicitud — ${editingAsesoria.folio}` : 'Nueva Solicitud de Asesoría Académica'}
+      subtitle={
+        editingAsesoria
+          ? 'Actualice la asignatura, prioridad, motivo o temas solicitados'
+          : 'Complete los datos para generar el folio oficial de asesoría institucional'
+      }
       maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -218,7 +267,7 @@ export const SolicitudFormModal: React.FC<SolicitudFormModalProps> = ({
             className="px-5 py-2 bg-emerald-900 hover:bg-emerald-800 text-white font-bold rounded-lg shadow-xs transition-colors flex items-center gap-2"
           >
             <CheckCircle className="w-4 h-4 text-amber-400" />
-            Generar Solicitud
+            {editingAsesoria ? 'Guardar Cambios' : 'Generar Solicitud'}
           </button>
         </div>
       </form>

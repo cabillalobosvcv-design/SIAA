@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
-import { Carrera, Grupo, Cuatrimestre, Materia, Aula } from '../../types/siaa';
 import {
   GraduationCap,
   Layers,
@@ -15,6 +14,7 @@ import {
   Edit2
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 export type CatalogoTipo = 'carreras' | 'grupos' | 'cuatrimestres' | 'materias' | 'aulas';
 
@@ -26,25 +26,73 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
   const { currentUser } = useAuth();
   const [activeCatalog, setActiveCatalog] = useState<CatalogoTipo>(initialType);
   const [search, setSearch] = useState('');
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useEffect(() => {
+    setActiveCatalog(initialType);
+    setSearch('');
+  }, [initialType]);
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<{ id: string; label: string } | null>(null);
 
   // Generic form fields
   const [nombre, setNombre] = useState('');
   const [codigo, setCodigo] = useState('');
   const [carreraId, setCarreraId] = useState('');
   const [cuatrimestreId, setCuatrimestreId] = useState('');
+  const [horasSemanales, setHorasSemanales] = useState(4);
+  const [turno, setTurno] = useState<'matutino' | 'vespertino' | 'mixto'>('matutino');
+  const [numeroCuatrimestre, setNumeroCuatrimestre] = useState(1);
+  const [periodo, setPeriodo] = useState('Sep - Dic 2026');
   const [edificio, setEdificio] = useState('');
   const [capacidad, setCapacidad] = useState(30);
   const [tipoEspacio, setTipoEspacio] = useState('Aula Teórica');
 
+  void refreshTick;
   const carreras = SIAADataService.getCarreras();
   const grupos = SIAADataService.getGrupos();
   const cuatrimestres = SIAADataService.getCuatrimestres();
   const materias = SIAADataService.getMaterias();
   const aulas = SIAADataService.getAulas();
+
+  const q = search.trim().toLowerCase();
+  const filteredCarreras = q
+    ? carreras.filter(c => c.nombre.toLowerCase().includes(q) || c.codigo.toLowerCase().includes(q))
+    : carreras;
+  const filteredMaterias = q
+    ? materias.filter(
+        m =>
+          m.nombre.toLowerCase().includes(q) ||
+          m.codigo.toLowerCase().includes(q) ||
+          (m.carreraNombre || '').toLowerCase().includes(q)
+      )
+    : materias;
+  const filteredAulas = q
+    ? aulas.filter(
+        a =>
+          a.nombre.toLowerCase().includes(q) ||
+          a.edificio.toLowerCase().includes(q) ||
+          a.tipo.toLowerCase().includes(q)
+      )
+    : aulas;
+  const filteredGrupos = q
+    ? grupos.filter(
+        g =>
+          g.nombre.toLowerCase().includes(q) ||
+          (g.carreraNombre || '').toLowerCase().includes(q)
+      )
+    : grupos;
+  const filteredCuatrimestres = q
+    ? cuatrimestres.filter(
+        cu =>
+          (cu.nombre || '').toLowerCase().includes(q) ||
+          (cu.periodo || '').toLowerCase().includes(q) ||
+          String(cu.numero).includes(q)
+      )
+    : cuatrimestres;
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -52,9 +100,13 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
     setCodigo('');
     setCarreraId(carreras[0]?.id || '');
     setCuatrimestreId(cuatrimestres[0]?.id || '');
+    setHorasSemanales(4);
+    setTurno('matutino');
+    setNumeroCuatrimestre(cuatrimestres.length + 1);
+    setPeriodo('Sep - Dic 2026');
     setEdificio('Edificio A');
     setCapacidad(30);
-    setTipoEspacio('Aula');
+    setTipoEspacio('Aula Teórica');
     setIsModalOpen(true);
   };
 
@@ -64,54 +116,111 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
 
     if (activeCatalog === 'carreras') {
       if (editingId) {
-        SIAADataService.updateCarrera(editingId, { nombre, codigo: codigo.toUpperCase() });
+        SIAADataService.updateCarrera(editingId, { nombre: nombre.trim(), codigo: codigo.trim().toUpperCase() });
       } else {
-        SIAADataService.addCarrera({ codigo: codigo.toUpperCase() || 'CARR', nombre, estado: 'activo' });
+        SIAADataService.addCarrera({ codigo: codigo.trim().toUpperCase() || 'CARR', nombre: nombre.trim(), estado: 'activo' });
       }
     } else if (activeCatalog === 'materias') {
       const cObj = carreras.find(c => c.id === carreraId) || carreras[0];
       const cuatObj = cuatrimestres.find(cu => cu.id === cuatrimestreId) || cuatrimestres[0];
       if (editingId) {
-        SIAADataService.updateMateria(editingId, { nombre, codigo: codigo.toUpperCase(), carreraId: cObj.id, cuatrimestreId: cuatObj.id });
+        SIAADataService.updateMateria(editingId, {
+          nombre: nombre.trim(),
+          codigo: codigo.trim().toUpperCase(),
+          carreraId: cObj?.id || '',
+          carreraNombre: cObj?.nombre || '',
+          cuatrimestreId: cuatObj?.id || '',
+          cuatrimestreNumero: cuatObj?.numero || 1,
+          horasSemanales
+        });
       } else {
         SIAADataService.addMateria({
-          codigo: codigo.toUpperCase() || 'MAT-00',
-          nombre,
-          carreraId: cObj.id,
-          carreraNombre: cObj.nombre,
-          cuatrimestreId: cuatObj.id,
-          cuatrimestreNumero: cuatObj.numero,
-          horasSemanales: 4,
+          codigo: codigo.trim().toUpperCase() || 'MAT-00',
+          nombre: nombre.trim(),
+          carreraId: cObj?.id || '',
+          carreraNombre: cObj?.nombre || '',
+          cuatrimestreId: cuatObj?.id || '',
+          cuatrimestreNumero: cuatObj?.numero || 1,
+          horasSemanales,
           estado: 'activo'
         });
       }
     } else if (activeCatalog === 'aulas') {
       if (editingId) {
-        SIAADataService.updateAula(editingId, { nombre, edificio, capacidad, tipo: tipoEspacio });
+        SIAADataService.updateAula(editingId, {
+          nombre: nombre.trim(),
+          edificio: edificio.trim(),
+          capacidad,
+          tipo: tipoEspacio.trim()
+        });
       } else {
         SIAADataService.addAula({
-          nombre,
-          edificio,
+          nombre: nombre.trim(),
+          edificio: edificio.trim(),
           capacidad,
-          tipo: tipoEspacio,
+          tipo: tipoEspacio.trim() || 'Aula Teórica',
           estado: 'activo'
         });
       }
     } else if (activeCatalog === 'grupos') {
       const cObj = carreras.find(c => c.id === carreraId) || carreras[0];
       const cuatObj = cuatrimestres.find(cu => cu.id === cuatrimestreId) || cuatrimestres[0];
-      SIAADataService.addGrupo({
-        nombre,
-        carreraId: cObj.id,
-        carreraNombre: cObj.nombre,
-        cuatrimestreId: cuatObj.id,
-        cuatrimestreNumero: cuatObj.numero,
-        turno: 'matutino',
-        estado: 'activo'
-      });
+      if (editingId) {
+        SIAADataService.updateGrupo(editingId, {
+          nombre: nombre.trim(),
+          carreraId: cObj?.id || '',
+          carreraNombre: cObj?.nombre || '',
+          cuatrimestreId: cuatObj?.id || '',
+          cuatrimestreNumero: cuatObj?.numero || 1,
+          turno
+        });
+      } else {
+        SIAADataService.addGrupo({
+          nombre: nombre.trim(),
+          carreraId: cObj?.id || '',
+          carreraNombre: cObj?.nombre || '',
+          cuatrimestreId: cuatObj?.id || '',
+          cuatrimestreNumero: cuatObj?.numero || 1,
+          turno,
+          estado: 'activo'
+        });
+      }
+    } else if (activeCatalog === 'cuatrimestres') {
+      if (editingId) {
+        SIAADataService.updateCuatrimestre(editingId, {
+          numero: numeroCuatrimestre,
+          nombre: nombre.trim(),
+          periodo: periodo.trim()
+        });
+      } else {
+        SIAADataService.addCuatrimestre({
+          numero: numeroCuatrimestre,
+          nombre: nombre.trim(),
+          periodo: periodo.trim(),
+          estado: 'activo'
+        });
+      }
     }
 
     setIsModalOpen(false);
+    setRefreshTick(t => t + 1);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!confirmDeleteItem) return;
+    if (activeCatalog === 'carreras') {
+      SIAADataService.deleteCarrera(confirmDeleteItem.id, currentUser || undefined);
+    } else if (activeCatalog === 'materias') {
+      SIAADataService.deleteMateria(confirmDeleteItem.id, currentUser || undefined);
+    } else if (activeCatalog === 'aulas') {
+      SIAADataService.deleteAula(confirmDeleteItem.id, currentUser || undefined);
+    } else if (activeCatalog === 'grupos') {
+      SIAADataService.deleteGrupo(confirmDeleteItem.id, currentUser || undefined);
+    } else if (activeCatalog === 'cuatrimestres') {
+      SIAADataService.deleteCuatrimestre(confirmDeleteItem.id, currentUser || undefined);
+    }
+    setConfirmDeleteItem(null);
+    setRefreshTick(t => t + 1);
   };
 
   const catalogTabs: { id: CatalogoTipo; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -122,6 +231,14 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
     { id: 'aulas', label: 'Aulas y Espacios', icon: DoorOpen }
   ];
 
+  const singularLabels: Record<CatalogoTipo, string> = {
+    carreras: 'CARRERA',
+    materias: 'MATERIA',
+    grupos: 'GRUPO',
+    cuatrimestres: 'CUATRIMESTRE',
+    aulas: 'AULA / ESPACIO'
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
@@ -131,7 +248,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
             Catálogos Académicos del Sistema
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Gestión de programas educativos, asignaturas curriculares, aulas y agrupaciones institucionales.
+            Registro, modificación y eliminación de programas educativos, asignaturas curriculares, grupos, cuatrimestres y aulas.
           </p>
         </div>
 
@@ -145,30 +262,43 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-        {catalogTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeCatalog === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setActiveCatalog(tab.id);
-                setSearch('');
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                isActive
-                  ? 'bg-emerald-900 dark:bg-emerald-700 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400 dark:text-slate-500'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* Tabs + Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {catalogTabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeCatalog === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveCatalog(tab.id);
+                  setSearch('');
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  isActive
+                    ? 'bg-emerald-900 dark:bg-emerald-700 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative w-full sm:w-64">
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filtrar catálogo..."
+            className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
+          />
+        </div>
       </div>
 
       {/* Content Table by Catalog */}
@@ -186,7 +316,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {carreras.map(c => (
+                {filteredCarreras.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-emerald-900 dark:text-emerald-400">{c.codigo}</td>
                     <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{c.nombre}</td>
@@ -195,19 +325,30 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                         {c.estado}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingId(c.id);
-                          setNombre(c.nombre);
-                          setCodigo(c.codigo);
-                          setIsModalOpen(true);
-                        }}
-                        className="p-1 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(c.id);
+                            setNombre(c.nombre);
+                            setCodigo(c.codigo);
+                            setIsModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          title="Modificar carrera"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteItem({ id: c.id, label: `${c.codigo} - ${c.nombre}` })}
+                          className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                          title="Eliminar carrera"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -229,7 +370,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {materias.map(m => (
+                {filteredMaterias.map(m => (
                   <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-emerald-900 dark:text-emerald-400">{m.codigo}</td>
                     <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{m.nombre}</td>
@@ -240,21 +381,33 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                         {m.estado}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingId(m.id);
-                          setNombre(m.nombre);
-                          setCodigo(m.codigo);
-                          setCarreraId(m.carreraId);
-                          setCuatrimestreId(m.cuatrimestreId);
-                          setIsModalOpen(true);
-                        }}
-                        className="p-1 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(m.id);
+                            setNombre(m.nombre);
+                            setCodigo(m.codigo);
+                            setCarreraId(m.carreraId);
+                            setCuatrimestreId(m.cuatrimestreId);
+                            setHorasSemanales(m.horasSemanales || 4);
+                            setIsModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          title="Modificar materia"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteItem({ id: m.id, label: `${m.codigo} - ${m.nombre}` })}
+                          className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                          title="Eliminar materia"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -276,7 +429,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {aulas.map(a => (
+                {filteredAulas.map(a => (
                   <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{a.nombre}</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{a.edificio}</td>
@@ -287,21 +440,32 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                         {a.estado}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingId(a.id);
-                          setNombre(a.nombre);
-                          setEdificio(a.edificio);
-                          setCapacidad(a.capacidad);
-                          setTipoEspacio(a.tipo);
-                          setIsModalOpen(true);
-                        }}
-                        className="p-1 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(a.id);
+                            setNombre(a.nombre);
+                            setEdificio(a.edificio);
+                            setCapacidad(a.capacidad);
+                            setTipoEspacio(a.tipo);
+                            setIsModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          title="Modificar aula"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteItem({ id: a.id, label: `${a.nombre} (${a.edificio})` })}
+                          className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                          title="Eliminar aula"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -319,10 +483,11 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                   <th className="px-4 py-3">Cuatrimestre</th>
                   <th className="px-4 py-3">Turno</th>
                   <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {grupos.map(g => (
+                {filteredGrupos.map(g => (
                   <tr key={g.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{g.nombre}</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{g.carreraNombre}</td>
@@ -332,6 +497,33 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
                         {g.estado}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(g.id);
+                            setNombre(g.nombre);
+                            setCarreraId(g.carreraId);
+                            setCuatrimestreId(g.cuatrimestreId);
+                            setTurno(g.turno);
+                            setIsModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          title="Modificar grupo"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteItem({ id: g.id, label: g.nombre })}
+                          className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                          title="Eliminar grupo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -348,10 +540,11 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                   <th className="px-4 py-3">Nombre</th>
                   <th className="px-4 py-3">Periodo Oficial</th>
                   <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {cuatrimestres.map(cu => (
+                {filteredCuatrimestres.map(cu => (
                   <tr key={cu.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-4 py-3 font-bold text-emerald-900 dark:text-emerald-400 font-mono">{cu.numero}°</td>
                     <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{cu.nombre}</td>
@@ -360,6 +553,32 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
                         {cu.estado}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(cu.id);
+                            setNumeroCuatrimestre(cu.numero);
+                            setNombre(cu.nombre || `${cu.numero}° Cuatrimestre`);
+                            setPeriodo(cu.periodo || '');
+                            setIsModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          title="Modificar cuatrimestre"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteItem({ id: cu.id, label: `${cu.numero}° - ${cu.nombre}` })}
+                          className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                          title="Eliminar cuatrimestre"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -373,7 +592,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={`Gestionar ${activeCatalog.slice(0, -1).toUpperCase()}`}
+        title={`${editingId ? 'Modificar' : 'Registrar'} ${singularLabels[activeCatalog]}`}
         subtitle="Registro y actualización en el catálogo central SIAA"
         maxWidth="md"
       >
@@ -382,23 +601,41 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre / Identificador Oficial *</label>
             <input
               type="text"
+              required
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Cálculo Diferencial o Aula 204"
+              placeholder="Ej: Cálculo Diferencial, Aula 204 o 1er Cuatrimestre"
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium"
             />
           </div>
 
           {(activeCatalog === 'carreras' || activeCatalog === 'materias') && (
-            <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Clave o Código Institucional *</label>
-              <input
-                type="text"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                placeholder="Ej: MAT-201 o ITIDS"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono"
-              />
+            <div className={activeCatalog === 'materias' ? 'grid grid-cols-2 gap-3' : ''}>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Clave o Código Institucional *</label>
+                <input
+                  type="text"
+                  required
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                  placeholder="Ej: MAT-201 o ITIDS"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono"
+                />
+              </div>
+
+              {activeCatalog === 'materias' && (
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Horas Semanales</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={horasSemanales}
+                    onChange={(e) => setHorasSemanales(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -432,8 +669,50 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
             </div>
           )}
 
-          {activeCatalog === 'aulas' && (
+          {activeCatalog === 'grupos' && (
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Turno</label>
+              <select
+                value={turno}
+                onChange={(e) => setTurno(e.target.value as 'matutino' | 'vespertino' | 'mixto')}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 capitalize"
+              >
+                <option value="matutino">Matutino</option>
+                <option value="vespertino">Vespertino</option>
+                <option value="mixto">Mixto</option>
+              </select>
+            </div>
+          )}
+
+          {activeCatalog === 'cuatrimestres' && (
             <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Número / Nivel *</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={15}
+                  required
+                  value={numeroCuatrimestre}
+                  onChange={(e) => setNumeroCuatrimestre(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Periodo Oficial</label>
+                <input
+                  type="text"
+                  value={periodo}
+                  onChange={(e) => setPeriodo(e.target.value)}
+                  placeholder="Ej: Ene - Abr 2026"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                />
+              </div>
+            </div>
+          )}
+
+          {activeCatalog === 'aulas' && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Edificio</label>
                 <input
@@ -444,7 +723,17 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Capacidad (Estudiantes)</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Tipo de Espacio</label>
+                <input
+                  type="text"
+                  value={tipoEspacio}
+                  onChange={(e) => setTipoEspacio(e.target.value)}
+                  placeholder="Ej: Aula Teórica"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Capacidad</label>
                 <input
                   type="number"
                   min={1}
@@ -470,11 +759,22 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({ initialType = 'car
               className="px-4 py-2 bg-emerald-900 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white font-bold rounded-lg shadow-xs flex items-center gap-1.5 transition-colors"
             >
               <CheckCircle2 className="w-4 h-4 text-amber-400" />
-              Guardar en Catálogo
+              {editingId ? 'Guardar Cambios' : 'Guardar en Catálogo'}
             </button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteItem}
+        onClose={() => setConfirmDeleteItem(null)}
+        onConfirm={handleConfirmDelete}
+        title="¿Eliminar elemento del catálogo?"
+        message={`Se eliminará permanentemente "${confirmDeleteItem?.label}" del catálogo institucional.`}
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };
