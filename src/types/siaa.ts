@@ -40,11 +40,14 @@ export interface Carrera {
   fechaCreacion?: string;
 }
 
+export type PeriodoOficial = 'Sep-Dic' | 'Ene-Abr' | 'May-Ago';
+
 export interface Cuatrimestre {
   id: string;
   numero: number;
   nombre?: string;
-  periodo?: string;
+  periodo?: PeriodoOficial | string;
+  anio?: number;
   descripcion?: string;
   estado: UserStatus;
 }

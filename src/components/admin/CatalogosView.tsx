@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { SIAADataService } from '../../services/siaaService';
+import { SIAADataService, OFFICIAL_PERIODS, normalizePeriodoAndAnio } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
+import { PeriodoOficial } from '../../types/siaa';
 import {
   GraduationCap,
   Layers,
@@ -51,7 +52,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   const [horasSemanales, setHorasSemanales] = useState(4);
   const [turno, setTurno] = useState<'matutino' | 'vespertino' | 'mixto'>('matutino');
   const [numeroCuatrimestre, setNumeroCuatrimestre] = useState(1);
-  const [periodo, setPeriodo] = useState('Sep - Dic 2026');
+  const [periodo, setPeriodo] = useState<PeriodoOficial>('Sep-Dic');
+  const [anioRegistro, setAnioRegistro] = useState<number>(new Date().getFullYear());
   const [edificio, setEdificio] = useState('');
   const [capacidad, setCapacidad] = useState(30);
   const [tipoEspacio, setTipoEspacio] = useState('Aula Teórica');
@@ -95,6 +97,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
         cu =>
           (cu.nombre || '').toLowerCase().includes(q) ||
           (cu.periodo || '').toLowerCase().includes(q) ||
+          String(cu.anio || '').includes(q) ||
           String(cu.numero).includes(q)
       )
     : cuatrimestres;
@@ -108,7 +111,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
     setHorasSemanales(4);
     setTurno('matutino');
     setNumeroCuatrimestre(cuatrimestres.length + 1);
-    setPeriodo('Sep - Dic 2026');
+    setPeriodo('Sep-Dic');
+    setAnioRegistro(new Date().getFullYear());
     setEdificio('Edificio A');
     setCapacidad(30);
     setTipoEspacio('Aula Teórica');
@@ -191,17 +195,20 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
         });
       }
     } else if (activeCatalog === 'cuatrimestres') {
+      const parsedYear = Number(anioRegistro) || new Date().getFullYear();
       if (editingId) {
         SIAADataService.updateCuatrimestre(editingId, {
           numero: numeroCuatrimestre,
           nombre: nombre.trim(),
-          periodo: periodo.trim()
+          periodo,
+          anio: parsedYear
         });
       } else {
         SIAADataService.addCuatrimestre({
           numero: numeroCuatrimestre,
           nombre: nombre.trim(),
-          periodo: periodo.trim(),
+          periodo,
+          anio: parsedYear,
           estado: 'activo'
         });
       }
@@ -557,6 +564,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                   <th className="px-4 py-3">Nivel</th>
                   <th className="px-4 py-3">Nombre</th>
                   <th className="px-4 py-3">Periodo Oficial</th>
+                  <th className="px-4 py-3">Año</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
@@ -566,7 +574,12 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                   <tr key={cu.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-4 py-3 font-bold text-emerald-900 dark:text-emerald-400 font-mono">{cu.numero}°</td>
                     <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{cu.nombre}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{cu.periodo}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-block px-2.5 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/70 border border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-300 font-semibold">
+                        {cu.periodo}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{cu.anio}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
                         {cu.estado}
@@ -577,10 +590,12 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                         <button
                           type="button"
                           onClick={() => {
+                            const normalized = normalizePeriodoAndAnio(cu.periodo, cu.anio);
                             setEditingId(cu.id);
                             setNumeroCuatrimestre(cu.numero);
                             setNombre(cu.nombre || `${cu.numero}° Cuatrimestre`);
-                            setPeriodo(cu.periodo || '');
+                            setPeriodo(normalized.periodo);
+                            setAnioRegistro(normalized.anio);
                             setIsModalOpen(true);
                           }}
                           className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
@@ -703,7 +718,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
           )}
 
           {activeCatalog === 'cuatrimestres' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Número / Nivel *</label>
                 <input
@@ -717,13 +732,30 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Periodo Oficial</label>
-                <input
-                  type="text"
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Periodo Oficial *</label>
+                <select
                   value={periodo}
-                  onChange={(e) => setPeriodo(e.target.value)}
-                  placeholder="Ej: Ene - Abr 2026"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                  onChange={(e) => setPeriodo(e.target.value as PeriodoOficial)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-semibold"
+                >
+                  {OFFICIAL_PERIODS.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Año del Registro *</label>
+                <input
+                  type="number"
+                  min={1990}
+                  max={2100}
+                  required
+                  value={anioRegistro}
+                  onChange={(e) => setAnioRegistro(Number(e.target.value))}
+                  placeholder="2026"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-mono font-semibold"
                 />
               </div>
             </div>

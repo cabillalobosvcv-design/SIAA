@@ -32,10 +32,10 @@ export const INITIAL_CARRERAS: Carrera[] = [
 ];
 
 export const INITIAL_CUATRIMESTRES: Cuatrimestre[] = [
-  { id: 'cuat-1', numero: 1, descripcion: 'Primer Cuatrimestre (Tronco Común)', estado: 'activo' },
-  { id: 'cuat-2', numero: 2, descripcion: 'Segundo Cuatrimestre (Fundamentos)', estado: 'activo' },
-  { id: 'cuat-3', numero: 3, descripcion: 'Tercer Cuatrimestre (Especialidad Inicial)', estado: 'activo' },
-  { id: 'cuat-4', numero: 4, descripcion: 'Cuarto Cuatrimestre (Desarrollo Avanzado)', estado: 'activo' }
+  { id: 'cuat-1', numero: 1, nombre: '1° Cuatrimestre', periodo: 'Sep-Dic', anio: 2026, descripcion: 'Primer Cuatrimestre (Tronco Común)', estado: 'activo' },
+  { id: 'cuat-2', numero: 2, nombre: '2° Cuatrimestre', periodo: 'Ene-Abr', anio: 2026, descripcion: 'Segundo Cuatrimestre (Fundamentos)', estado: 'activo' },
+  { id: 'cuat-3', numero: 3, nombre: '3° Cuatrimestre', periodo: 'May-Ago', anio: 2026, descripcion: 'Tercer Cuatrimestre (Especialidad Inicial)', estado: 'activo' },
+  { id: 'cuat-4', numero: 4, nombre: '4° Cuatrimestre', periodo: 'Sep-Dic', anio: 2026, descripcion: 'Cuarto Cuatrimestre (Desarrollo Avanzado)', estado: 'activo' }
 ];
 
 export const INITIAL_GRUPOS: Grupo[] = [

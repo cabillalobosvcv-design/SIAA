@@ -13,7 +13,8 @@ import {
   AuditLog,
   FilterParams,
   UserRole,
-  InstitutionalConfig
+  InstitutionalConfig,
+  PeriodoOficial
 } from '../types/siaa';
 import {
   INITIAL_USERS,
@@ -59,6 +60,35 @@ export const DEFAULT_INSTITUTIONAL_CONFIG: InstitutionalConfig = {
   anticipacionHoras: 24,
   notifCorreo: true
 };
+
+export const OFFICIAL_PERIODS: { value: PeriodoOficial; label: string }[] = [
+  { value: 'Sep-Dic', label: 'Sep-Dic (Septiembre - Diciembre)' },
+  { value: 'Ene-Abr', label: 'Ene-Abr (Enero - Abril)' },
+  { value: 'May-Ago', label: 'May-Ago (Mayo - Agosto)' }
+];
+
+export function normalizePeriodoAndAnio(
+  rawPeriodo?: string,
+  rawAnio?: number | string
+): { periodo: PeriodoOficial; anio: number } {
+  const clean = (rawPeriodo || '').toLowerCase().replace(/\s+/g, '');
+  let periodo: PeriodoOficial = 'Sep-Dic';
+  if (clean.includes('ene') || clean.includes('abr')) {
+    periodo = 'Ene-Abr';
+  } else if (clean.includes('may') || clean.includes('ago')) {
+    periodo = 'May-Ago';
+  } else if (clean.includes('sep') || clean.includes('dic')) {
+    periodo = 'Sep-Dic';
+  }
+
+  let anio = Number(rawAnio);
+  if (!anio || isNaN(anio) || anio < 1990 || anio > 2100) {
+    const yearMatch = (rawPeriodo || '').match(/(19\d{2}|20\d{2}|2100)/);
+    anio = yearMatch ? Number(yearMatch[1]) : new Date().getFullYear();
+  }
+
+  return { periodo, anio };
+}
 
 function emitDataEvent(eventName: 'siaa-config-updated' | 'siaa-users-updated'): void {
   if (typeof window !== 'undefined') {
@@ -139,7 +169,17 @@ export class SIAADataService {
   }
 
   static getCuatrimestres(): Cuatrimestre[] {
-    return getStored<Cuatrimestre[]>(STORAGE_KEYS.CUATRIMESTRES, INITIAL_CUATRIMESTRES);
+    const raw = getStored<Cuatrimestre[]>(STORAGE_KEYS.CUATRIMESTRES, INITIAL_CUATRIMESTRES);
+    return raw.map((cu, index) => {
+      const defaultPeriod = OFFICIAL_PERIODS[index % OFFICIAL_PERIODS.length].value;
+      const normalized = normalizePeriodoAndAnio(cu.periodo || defaultPeriod, cu.anio);
+      return {
+        ...cu,
+        nombre: cu.nombre || `${cu.numero}° Cuatrimestre`,
+        periodo: normalized.periodo,
+        anio: normalized.anio
+      };
+    });
   }
 
   static getGrupos(): Grupo[] {

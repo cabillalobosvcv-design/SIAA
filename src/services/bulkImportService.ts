@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { SIAADataService } from './siaaService';
+import { SIAADataService, normalizePeriodoAndAnio } from './siaaService';
 import {
   Aula,
   Carrera,
@@ -448,10 +448,19 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
       {
         key: 'periodo',
         label: 'Periodo Oficial',
-        required: false,
-        type: 'Texto',
-        example: 'Sep - Dic 2026',
-        description: 'Rango de meses o ciclo institucional.'
+        required: true,
+        type: 'Lista',
+        example: 'Sep-Dic',
+        allowedValues: 'Sep-Dic | Ene-Abr | May-Ago',
+        description: 'Periodo cuatrimestral oficial (Sep-Dic, Ene-Abr o May-Ago).'
+      },
+      {
+        key: 'anio',
+        label: 'Año',
+        required: true,
+        type: 'Número',
+        example: '2026',
+        description: 'Año correspondiente al registro (ej. 2026).'
       },
       {
         key: 'descripcion',
@@ -475,7 +484,8 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
       {
         numero: 5,
         nombre: '5° Cuatrimestre',
-        periodo: 'Sep - Dic 2026',
+        periodo: 'Sep-Dic',
+        anio: 2026,
         descripcion: 'Quinto Cuatrimestre (Integración Profesional)',
         estado: 'activo'
       }
@@ -769,7 +779,8 @@ function getCurrentExportRows(type: BulkEntityType): Record<string, string | num
       return cuatrimestres.map(cu => ({
         numero: cu.numero,
         nombre: cu.nombre || `${cu.numero}° Cuatrimestre`,
-        periodo: cu.periodo || '',
+        periodo: cu.periodo || 'Sep-Dic',
+        anio: cu.anio || new Date().getFullYear(),
         descripcion: cu.descripcion || '',
         estado: cu.estado
       }));
@@ -1067,17 +1078,35 @@ export async function parseAndValidateBulkFile(type: BulkEntityType, file: File)
     } else if (type === 'cuatrimestres') {
       const num = Number(rowData.numero);
       const estado = normalizeEstado(rowData.estado);
+      const rawPeriodo = (rowData.periodo || '').trim();
+      const rawAnio = (rowData.anio || '').trim();
+      const cleanPeriodo = rawPeriodo.toLowerCase().replace(/\s+/g, '');
+      const validPeriodo =
+        !rawPeriodo ||
+        cleanPeriodo.includes('sep') ||
+        cleanPeriodo.includes('dic') ||
+        cleanPeriodo.includes('ene') ||
+        cleanPeriodo.includes('abr') ||
+        cleanPeriodo.includes('may') ||
+        cleanPeriodo.includes('ago');
+
+      const parsedAnio = Number(rawAnio);
+      const normalized = normalizePeriodoAndAnio(rawPeriodo, rawAnio);
 
       if (!rowData.numero || isNaN(num) || num < 1 || num > 15) {
         errors.push('Número debe estar entre 1 y 15');
       }
       if (!rowData.nombre) errors.push('Nombre obligatorio');
+      if (!validPeriodo) errors.push('Periodo inválido (use Sep-Dic, Ene-Abr o May-Ago)');
+      if (rawAnio && (isNaN(parsedAnio) || parsedAnio < 1990 || parsedAnio > 2100)) {
+        errors.push('Año inválido (debe estar entre 1990 y 2100)');
+      }
       if (!estado) errors.push('Estado inválido (activo o inactivo)');
 
       const exists = existingCuatrimestres.some(cu => cu.numero === num);
       action = errors.length > 0 ? 'error' : exists ? 'update' : 'create';
       identifier = rowData.numero ? `${rowData.numero}°` : `Fila ${i + 1}`;
-      summary = `${rowData.nombre} (${rowData.periodo || 'Sin periodo'})`;
+      summary = `${rowData.nombre} (${normalized.periodo} ${normalized.anio})`;
     } else if (type === 'aulas') {
       const cap = Number(rowData.capacidad);
       const estado = normalizeEstado(rowData.estado);
@@ -1374,6 +1403,8 @@ export function applyBulkImport(
       const estado = normalizeEstado(d.estado) || 'activo';
       const existingIdx = list.findIndex(cu => cu.numero === numero);
 
+      const normalized = normalizePeriodoAndAnio(d.periodo || list[existingIdx]?.periodo, d.anio || list[existingIdx]?.anio);
+
       if (existingIdx >= 0) {
         if (mode === 'create_only') {
           skipped++;
@@ -1383,7 +1414,8 @@ export function applyBulkImport(
           ...list[existingIdx],
           numero,
           nombre: d.nombre,
-          periodo: d.periodo || list[existingIdx].periodo,
+          periodo: normalized.periodo,
+          anio: normalized.anio,
           descripcion: d.descripcion || list[existingIdx].descripcion,
           estado
         };
@@ -1393,7 +1425,8 @@ export function applyBulkImport(
           id: `cuat-bulk-${Date.now()}-${idx}`,
           numero,
           nombre: d.nombre,
-          periodo: d.periodo || undefined,
+          periodo: normalized.periodo,
+          anio: normalized.anio,
           descripcion: d.descripcion || undefined,
           estado
         };
