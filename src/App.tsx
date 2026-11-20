@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Header } from './components/layout/Header';
@@ -37,6 +37,11 @@ function SIAAApp() {
   const [advisoryToFollowUp, setAdvisoryToFollowUp] = useState<Asesoria | null>(null);
   const [bulkEntity, setBulkEntity] = useState<BulkEntityType>('usuarios');
   const [dataVersion, setDataVersion] = useState(0);
+
+  useEffect(() => {
+    setCurrentView('dashboard');
+    setIsSidebarOpen(false);
+  }, [currentUser?.uid]);
 
   // Re-fetch advisory when needed
   void dataVersion;

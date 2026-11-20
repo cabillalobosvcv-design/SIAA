@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SIAADataService } from '../../services/siaaService';
 import { ShieldCheck, Search, Filter, Clock, User, Layers } from 'lucide-react';
+import { getRoleMeta } from '../../utils/roles';
 
 export const AuditoriaView: React.FC = () => {
   const logs = SIAADataService.getAuditLogs();
@@ -89,8 +90,8 @@ export const AuditoriaView: React.FC = () => {
                     {log.usuarioNombre}
                   </td>
                   <td className="px-4 py-3 font-sans">
-                    <span className="capitalize px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-transparent dark:border-slate-700 text-[10px] font-semibold">
-                      {log.rol}
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${getRoleMeta(log.rol).badgeClass}`}>
+                      {getRoleMeta(log.rol).shortLabel}
                     </span>
                   </td>
                   <td className="px-4 py-3 font-sans font-medium text-emerald-900 dark:text-emerald-400">

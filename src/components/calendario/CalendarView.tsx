@@ -12,6 +12,7 @@ import {
   DoorOpen,
   Filter
 } from 'lucide-react';
+import { isTeachingRole } from '../../utils/roles';
 
 interface CalendarViewProps {
   onSelectAdvisory: (id: string) => void;
@@ -20,7 +21,7 @@ interface CalendarViewProps {
 export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) => {
   const { currentUser, currentRole } = useAuth();
   const asesorias = SIAADataService.getAsesorias();
-  const docentes = SIAADataService.getUsers().filter(u => u.rol === 'docente');
+  const docentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
   const aulas = SIAADataService.getAulas();
 
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date(2026, 8, 1)); // Sept 2026
@@ -32,8 +33,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
   let displayAsesorias = asesorias.filter(a => a.fechaProgramada);
   if (currentRole === 'alumno') {
     displayAsesorias = displayAsesorias.filter(a => a.alumnoId === currentUser?.uid);
-  } else if (currentRole === 'docente') {
+  } else if (isTeachingRole(currentRole)) {
     displayAsesorias = displayAsesorias.filter(a => a.docenteAsignadoId === currentUser?.uid);
+  } else if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
+    displayAsesorias = displayAsesorias.filter(a => a.carreraId === currentUser.carreraId);
   }
 
   // Filter by teacher
@@ -186,7 +189,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Filtros:</span>
         </div>
 
-        {currentRole !== 'docente' && (
+        {!isTeachingRole(currentRole) && (
           <select
             value={filterDocente}
             onChange={(e) => setFilterDocente(e.target.value)}

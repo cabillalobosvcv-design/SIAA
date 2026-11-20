@@ -14,14 +14,19 @@ import {
   Clock,
   Sparkles
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { isTeachingRole } from '../../utils/roles';
 
 export const ReportesView: React.FC = () => {
+  const { currentUser, currentRole } = useAuth();
   const asesorias = SIAADataService.getAsesorias();
   const carreras = SIAADataService.getCarreras();
   const cuatrimestres = SIAADataService.getCuatrimestres();
-  const docentes = SIAADataService.getUsers().filter(u => u.rol === 'docente');
+  const docentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
 
-  const [selectedCarrera, setSelectedCarrera] = useState<string>('all');
+  const [selectedCarrera, setSelectedCarrera] = useState<string>(
+    currentRole === 'jefe_carrera' && currentUser?.carreraId ? currentUser.carreraId : 'all'
+  );
   const [selectedCuatrimestre, setSelectedCuatrimestre] = useState<string>('all');
   const [selectedDocente, setSelectedDocente] = useState<string>('all');
   const [selectedEstado, setSelectedEstado] = useState<string>('all');

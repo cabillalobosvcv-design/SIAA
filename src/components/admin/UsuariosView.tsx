@@ -17,10 +17,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Layers
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { ROLE_HIERARCHY, getRoleMeta, isTeachingRole } from '../../utils/roles';
 
 interface UsuariosViewProps {
   onOpenBulkImport?: () => void;
@@ -40,6 +42,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
   const [resetPassUser, setResetPassUser] = useState<SIAAUser | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [passSuccess, setPassSuccess] = useState(false);
+  const [showHierarchyPanel, setShowHierarchyPanel] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
 
   // Form fields
@@ -127,8 +130,8 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
         correo: correo.trim(),
         rol,
         matricula: rol === 'alumno' ? matricula.trim() : undefined,
-        numeroEmpleado: (rol === 'docente' || rol === 'director' || rol === 'admin') ? numeroEmpleado.trim() : undefined,
-        carreraId: rol === 'alumno' ? carreraId : undefined,
+        numeroEmpleado: rol !== 'alumno' ? numeroEmpleado.trim() : undefined,
+        carreraId: carreraId || undefined,
         grupoId: rol === 'alumno' ? grupoId : undefined
       }, currentUser);
     } else {
@@ -139,8 +142,8 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
         correo: correo.trim(),
         rol,
         matricula: rol === 'alumno' ? matricula.trim() : undefined,
-        numeroEmpleado: (rol === 'docente' || rol === 'director' || rol === 'admin') ? numeroEmpleado.trim() : undefined,
-        carreraId: rol === 'alumno' ? carreraId : undefined,
+        numeroEmpleado: rol !== 'alumno' ? numeroEmpleado.trim() : undefined,
+        carreraId: carreraId || undefined,
         grupoId: rol === 'alumno' ? grupoId : undefined,
         estado: 'activo'
       }, currentUser);
@@ -188,11 +191,24 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
             Gestión Institucional de Usuarios
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Administración de cuentas para Alumnos, Docentes, Directivos y Administradores.
+            Administración de cuentas y los 7 niveles jerárquicos institucionales (desde Administrador hasta Alumnos).
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowHierarchyPanel(v => !v)}
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg border font-semibold text-xs transition-colors ${
+              showHierarchyPanel
+                ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+            }`}
+          >
+            <Layers className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            {showHierarchyPanel ? 'Ocultar Niveles y Funciones' : 'Ver Niveles y Funciones'}
+          </button>
+
           {onOpenBulkImport && (
             <button
               type="button"
@@ -215,6 +231,47 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
         </div>
       </div>
 
+      {/* Collapsible Role Hierarchy & Functions Matrix */}
+      {showHierarchyPanel && (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Estructura Jerárquica Institucional (7 Niveles y Funciones)
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Cada nivel define permisos específicos de autorización, asignación, tutoría, impartición de asesorías y consulta.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 text-xs">
+            {ROLE_HIERARCHY.map(level => (
+              <div
+                key={level.code}
+                className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${level.badgeClass}`}>
+                    Nivel {level.nivel}
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                    {users.filter(u => u.rol === level.code).length} usuarios
+                  </span>
+                </div>
+                <p className="font-bold text-slate-900 dark:text-slate-100 leading-snug">{level.label}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{level.description}</p>
+                <ul className="space-y-1 pt-1 border-t border-slate-200/70 dark:border-slate-700/70">
+                  {level.funciones.map((fn, idx) => (
+                    <li key={idx} className="text-[11px] text-slate-600 dark:text-slate-300 flex items-start gap-1.5">
+                      <span className="text-emerald-700 dark:text-emerald-400 font-bold">•</span>
+                      <span>{fn}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filter toolbar */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
@@ -234,11 +291,12 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
             onChange={(e) => setRoleFilter(e.target.value)}
             className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
           >
-            <option value="all">Todos los Roles</option>
-            <option value="admin">Administrador</option>
-            <option value="director">Directivo</option>
-            <option value="docente">Docente</option>
-            <option value="alumno">Alumno</option>
+            <option value="all">Todos los Niveles</option>
+            {ROLE_HIERARCHY.map(level => (
+              <option key={level.code} value={level.code}>
+                Nivel {level.nivel}: {level.label}
+              </option>
+            ))}
           </select>
 
           <select
@@ -285,18 +343,26 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
                     {u.correo}
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
-                      u.rol === 'admin' ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800' :
-                      u.rol === 'director' ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800' :
-                      u.rol === 'docente' ? 'bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800' :
-                      'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
-                    }`}>
-                      {u.rol === 'admin' && <Shield className="w-3 h-3" />}
-                      {u.rol === 'director' && <GraduationCap className="w-3 h-3" />}
-                      {u.rol === 'docente' && <BookOpen className="w-3 h-3" />}
-                      {u.rol === 'alumno' && <UserIcon className="w-3 h-3" />}
-                      <span className="capitalize">{u.rol}</span>
-                    </span>
+                    {(() => {
+                      const meta = getRoleMeta(u.rol);
+                      const carr = u.carreraId ? carreras.find(c => c.id === u.carreraId) : undefined;
+                      return (
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${meta.badgeClass}`}>
+                            {u.rol === 'admin' && <Shield className="w-3 h-3 shrink-0" />}
+                            {(u.rol === 'director' || u.rol === 'jefe_carrera') && <GraduationCap className="w-3 h-3 shrink-0" />}
+                            {isTeachingRole(u.rol) && <BookOpen className="w-3 h-3 shrink-0" />}
+                            {u.rol === 'alumno' && <UserIcon className="w-3 h-3 shrink-0" />}
+                            <span>N{meta.nivel} • {meta.label}</span>
+                          </span>
+                          {carr && (
+                            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                              Adscrito: {carr.codigo}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3.5 font-mono text-slate-700 dark:text-slate-300">
                     {u.matricula || u.numeroEmpleado || '--'}
@@ -430,18 +496,29 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Rol Institucional *</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Nivel Jerárquico / Rol *</label>
               <select
                 value={rol}
                 onChange={(e) => setRol(e.target.value as UserRole)}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-semibold"
               >
-                <option value="alumno">Alumno</option>
-                <option value="docente">Docente Asesor</option>
-                <option value="director">Directivo Académico</option>
-                <option value="admin">Administrador General</option>
+                {ROLE_HIERARCHY.map(level => (
+                  <option key={level.code} value={level.code}>
+                    Nivel {level.nivel} — {level.label}
+                  </option>
+                ))}
               </select>
             </div>
+          </div>
+
+          {/* Selected Role Functions Preview */}
+          <div className="p-3 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 text-[11px]">
+            <p className="font-bold text-emerald-900 dark:text-emerald-300">
+              Funciones de {getRoleMeta(rol).label}:
+            </p>
+            <p className="text-slate-600 dark:text-slate-300 mt-0.5">
+              {getRoleMeta(rol).funciones.join(' • ')}
+            </p>
           </div>
 
           {/* Role specific fields */}
@@ -483,15 +560,32 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ onOpenBulkImport }) 
               </div>
             </div>
           ) : (
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Número de Empleado / Clave de Catedrático</label>
-              <input
-                type="text"
-                value={numeroEmpleado}
-                onChange={(e) => setNumeroEmpleado(e.target.value)}
-                placeholder="Ej: EMP-0042"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Número de Empleado / Clave</label>
+                <input
+                  type="text"
+                  value={numeroEmpleado}
+                  onChange={(e) => setNumeroEmpleado(e.target.value)}
+                  placeholder="Ej: PTC-201, PA-301, JEF-101"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Carrera Adscrita {rol === 'jefe_carrera' ? '*' : '(Opcional)'}
+                </label>
+                <select
+                  value={carreraId}
+                  onChange={(e) => setCarreraId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                >
+                  <option value="">Todas / Institucional</option>
+                  {carreras.map(c => (
+                    <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 

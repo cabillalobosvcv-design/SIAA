@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SIAADataService } from '../../services/siaaService';
 import { UserRole } from '../../types/siaa';
 import { ThemeToggleButton } from '../common/ThemeToggleButton';
+import { getRoleMeta } from '../../utils/roles';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -40,54 +41,54 @@ export const Header: React.FC<HeaderProps> = ({
   const demoAccounts: { name: string; roleName: string; role: UserRole; uid: string; email: string }[] = [
     {
       name: 'Mtro. Carlos Mendoza',
-      roleName: 'Administrador General',
+      roleName: 'Nivel 1 • Administrador',
       role: 'admin',
       uid: 'user-admin-1',
       email: 'admin@siaa.edu.mx'
     },
     {
       name: 'Dra. Patricia Valenzuela',
-      roleName: 'Directora Académica',
+      roleName: 'Nivel 2 • Director Académico',
       role: 'director',
       uid: 'user-dir-1',
       email: 'directora.academica@siaa.edu.mx'
     },
     {
+      name: 'Mtra. Claudia Navarro',
+      roleName: 'Nivel 3 • Jefa de Carrera (ITIDS)',
+      role: 'jefe_carrera',
+      uid: 'user-jefe-1',
+      email: 'jefa.itids@siaa.edu.mx'
+    },
+    {
       name: 'Dr. Fernando Aguirre',
-      roleName: 'Docente Asesor (Cálculo)',
-      role: 'docente',
+      roleName: 'Nivel 4 • Profesor Tiempo Completo (Tutor)',
+      role: 'ptc_tutor',
       uid: 'user-doc-1',
       email: 'fernando.aguirre@siaa.edu.mx'
     },
     {
-      name: 'Mtra. Lorena Méndez',
-      roleName: 'Docente Asesora (Sistemas)',
-      role: 'docente',
-      uid: 'user-doc-2',
-      email: 'lorena.mendez@siaa.edu.mx'
+      name: 'Ing. Javier Rocha',
+      roleName: 'Nivel 5 • Profesor de Asignatura (PA)',
+      role: 'pa',
+      uid: 'user-doc-3',
+      email: 'javier.rocha@siaa.edu.mx'
     },
     {
-      name: 'Mateo Ramírez (Alumno)',
-      roleName: 'Alumno ITIDS (3° Cuat.)',
+      name: 'Lic. Daniel Quiroz',
+      roleName: 'Nivel 6 • Administrativo con Función Docente',
+      role: 'administrativo_docente',
+      uid: 'user-doc-5',
+      email: 'daniel.quiroz@siaa.edu.mx'
+    },
+    {
+      name: 'Mateo Ramírez',
+      roleName: 'Nivel 7 • Alumno ITIDS (3° Cuat.)',
       role: 'alumno',
       uid: 'user-alu-3',
       email: 'mateo.ramirez@alumno.siaa.edu.mx'
-    },
-    {
-      name: 'Mariana Ortiz (Alumna)',
-      roleName: 'Alumna IIGP (1° Cuat.)',
-      role: 'alumno',
-      uid: 'user-alu-6',
-      email: 'mariana.ortiz@alumno.siaa.edu.mx'
     }
   ];
-
-  const roleLabelMap: Record<UserRole, { title: string; color: string }> = {
-    admin: { title: 'Administrador', color: 'bg-amber-500/20 text-amber-300 border-amber-400/40' },
-    director: { title: 'Directivo Académico', color: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40' },
-    docente: { title: 'Docente Asesor', color: 'bg-sky-500/20 text-sky-200 border-sky-400/40' },
-    alumno: { title: 'Alumno', color: 'bg-slate-500/20 text-slate-200 border-slate-400/40' }
-  };
 
   const handleMarkAllRead = () => {
     if (currentUser) {
@@ -145,26 +146,26 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <UserCheck className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="hidden md:inline">Simular Rol:</span>
-                <span className="font-semibold text-white">
-                  {currentUser ? roleLabelMap[currentUser.rol].title : 'Seleccionar'}
+                <span className="font-semibold text-white truncate max-w-[160px]">
+                  {currentUser ? getRoleMeta(currentUser.rol).shortLabel : 'Seleccionar'}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-emerald-300" />
               </button>
 
               {showRoleMenu && (
                 <div
-                  className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 text-slate-800 dark:text-slate-100 z-50 animate-fadeIn"
+                  className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 text-slate-800 dark:text-slate-100 z-50 animate-fadeIn"
                   onClick={() => setShowRoleMenu(false)}
                 >
                   <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/70">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Cambio Rápido de Cuenta para Pruebas
+                      Cambio Rápido por Nivel Jerárquico
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Explora el sistema con cualquiera de los 4 roles
+                      Explora el sistema en cualquiera de los 7 niveles
                     </p>
                   </div>
-                  <div className="py-1 max-h-72 overflow-y-auto">
+                  <div className="py-1 max-h-80 overflow-y-auto">
                     {demoAccounts.map(demo => (
                       <button
                         key={demo.uid}
@@ -178,8 +179,8 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <div className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-300 mt-0.5 shrink-0">
                           {demo.role === 'admin' && <Shield className="w-3.5 h-3.5" />}
-                          {demo.role === 'director' && <GraduationCap className="w-3.5 h-3.5" />}
-                          {demo.role === 'docente' && <BookOpen className="w-3.5 h-3.5" />}
+                          {(demo.role === 'director' || demo.role === 'jefe_carrera') && <GraduationCap className="w-3.5 h-3.5" />}
+                          {(demo.role === 'ptc_tutor' || demo.role === 'pa' || demo.role === 'administrativo_docente') && <BookOpen className="w-3.5 h-3.5" />}
                           {demo.role === 'alumno' && <UserIcon className="w-3.5 h-3.5" />}
                         </div>
                         <div className="truncate">
@@ -287,8 +288,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <p className="text-xs sm:text-sm font-semibold text-white leading-tight truncate max-w-[150px]">
                     {currentUser.nombre} {currentUser.apellidoPaterno}
                   </p>
-                  <span className={`inline-block text-[10px] px-1.5 py-0.2 rounded border font-medium mt-0.5 ${roleLabelMap[currentUser.rol].color}`}>
-                    {roleLabelMap[currentUser.rol].title}
+                  <span className={`inline-block text-[10px] px-1.5 py-0.2 rounded border font-medium mt-0.5 ${getRoleMeta(currentUser.rol).headerBadgeClass}`}>
+                    {getRoleMeta(currentUser.rol).shortLabel}
                   </span>
                 </div>
 

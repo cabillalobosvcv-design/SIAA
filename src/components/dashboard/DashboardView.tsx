@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
-  GraduationCap,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -9,8 +8,6 @@ import {
   BookOpen,
   ArrowRight,
   PlusCircle,
-  FileText,
-  DoorOpen,
   FileSpreadsheet,
   Layers,
   ChevronRight,
@@ -20,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { SIAADataService } from '../../services/siaaService';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
-import { Asesoria, UserRole } from '../../types/siaa';
+import { getRoleMeta, isTeachingRole, canCreateSolicitudForStudents } from '../../utils/roles';
 import {
   BarChart,
   Bar,
@@ -64,8 +61,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     color: isDark ? '#f1f5f9' : '#0f172a'
   };
 
-  // Filters for Director Dashboard
-  const [selectedCarrera, setSelectedCarrera] = useState<string>('all');
+  // Filters for Director / Jefe de Carrera Dashboard
+  const [selectedCarrera, setSelectedCarrera] = useState<string>(
+    currentRole === 'jefe_carrera' && currentUser?.carreraId ? currentUser.carreraId : 'all'
+  );
+
+  useEffect(() => {
+    if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
+      setSelectedCarrera(currentUser.carreraId);
+    } else if (currentRole === 'director') {
+      setSelectedCarrera('all');
+    }
+  }, [currentRole, currentUser?.carreraId]);
 
   // ----------------------------------------------------
   // 1. DASHBOARD DEL ALUMNO (Requirement 39)
@@ -288,9 +295,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }
 
   // ----------------------------------------------------
-  // 2. DASHBOARD DEL DOCENTE (Requirement 40)
+  // 2. DASHBOARD DEL PERSONAL DOCENTE (PTC Tutor / PA / Administrativo Docente)
   // ----------------------------------------------------
-  if (currentRole === 'docente') {
+  if (isTeachingRole(currentRole)) {
+    const roleMeta = getRoleMeta(currentRole);
+    const canCanalizar = canCreateSolicitudForStudents(currentRole);
     const misAsesorias = asesorias.filter(a => a.docenteAsignadoId === currentUser?.uid);
     const todayStr = new Date().toISOString().split('T')[0];
     const hoy = misAsesorias.filter(a => a.fechaProgramada === todayStr && (a.estado === 'confirmada' || a.estado === 'asignada' || a.estado === 'en_proceso'));
@@ -303,17 +312,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Header Hero */}
         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              Panel del Docente Asesor
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${roleMeta.badgeClass}`}>
+                Nivel {roleMeta.nivel} • {roleMeta.label}
+              </span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                {roleMeta.portalTitle}
+              </span>
+            </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 font-serif">
               {currentUser?.nombre} {currentUser?.apellidoPaterno}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              No. Empleado: <span className="font-mono font-medium">{currentUser?.numeroEmpleado}</span> | {currentUser?.correo}
+              No. Empleado: <span className="font-mono font-medium">{currentUser?.numeroEmpleado || 'N/A'}</span> | {currentUser?.correo}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {canCanalizar && (
+              <button
+                type="button"
+                onClick={onOpenSolicitudModal}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-xs shadow-xs transition-colors"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Canalizar / Solicitar Asesoría
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onNavigate('disponibilidad')}
@@ -461,17 +485,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }
 
   // ----------------------------------------------------
-  // 3. DASHBOARD DEL DIRECTIVO ACADÉMICO (Requirement 41)
+  // 3. DASHBOARD DE DIRECCIÓN ACADÉMICA / JEFATURA DE CARRERA
   // ----------------------------------------------------
-  if (currentRole === 'director') {
-    const filteredByCarrera = selectedCarrera === 'all'
-      ? asesorias
-      : asesorias.filter(a => a.carreraId === selectedCarrera);
+  if (currentRole === 'director' || currentRole === 'jefe_carrera') {
+    const roleMeta = getRoleMeta(currentRole);
+    const effectiveCarrera =
+      currentRole === 'jefe_carrera' && currentUser?.carreraId
+        ? currentUser.carreraId
+        : selectedCarrera;
 
-    const totalAlumnos = users.filter(u => u.rol === 'alumno' && u.estado === 'activo').length;
-    const totalDocentes = users.filter(u => u.rol === 'docente' && u.estado === 'activo').length;
+    const filteredByCarrera = effectiveCarrera === 'all'
+      ? asesorias
+      : asesorias.filter(a => a.carreraId === effectiveCarrera);
+
+    const totalAlumnos = users.filter(
+      u => u.rol === 'alumno' && u.estado === 'activo' && (effectiveCarrera === 'all' || u.carreraId === effectiveCarrera)
+    ).length;
+    const totalDocentes = users.filter(
+      u => isTeachingRole(u.rol) && u.estado === 'activo' && (effectiveCarrera === 'all' || !u.carreraId || u.carreraId === effectiveCarrera)
+    ).length;
     const pendientes = filteredByCarrera.filter(a => a.estado === 'pendiente' || a.estado === 'en_revision');
-    const aprobadas = filteredByCarrera.filter(a => a.estado === 'aprobada' || a.estado === 'confirmada');
+    const aprobadas = filteredByCarrera.filter(a => a.estado === 'aprobada' || a.estado === 'asignada' || a.estado === 'confirmada');
     const realizadas = filteredByCarrera.filter(a => a.estado === 'realizada' || a.estado === 'cerrada');
 
     // Chart data: Asesorías por Materia
@@ -495,33 +529,57 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       value
     }));
 
+    const currentCareerObj = carreras.find(c => c.id === effectiveCarrera);
+
     return (
       <div className="space-y-6 animate-fadeIn">
         {/* Header with Period & Career Filters */}
         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              Dirección de Asuntos Académicos
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${roleMeta.badgeClass}`}>
+              Nivel {roleMeta.nivel} • {currentRole === 'director' ? 'Dirección de Asuntos Académicos' : `Jefatura de Carrera${currentCareerObj ? ` (${currentCareerObj.codigo})` : ''}`}
             </span>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-2 font-serif">
               Indicadores Académicos y Cumplimiento
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Supervisión de rezago pedagógico, asesorías preventivas y desempeño institucional.
+              {currentRole === 'jefe_carrera'
+                ? 'Supervisión, autorización y asignación docente para los alumnos y materias de su programa educativo.'
+                : 'Supervisión institucional de rezago pedagógico, asesorías preventivas y desempeño académico global.'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <select
-              value={selectedCarrera}
-              onChange={(e) => setSelectedCarrera(e.target.value)}
-              className="text-xs font-semibold px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-emerald-700"
+            {currentRole === 'director' ? (
+              <select
+                value={selectedCarrera}
+                onChange={(e) => setSelectedCarrera(e.target.value)}
+                className="text-xs font-semibold px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="all">Todas las Carreras</option>
+                {carreras.map(c => (
+                  <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
+                ))}
+              </select>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenSolicitudModal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-lg text-xs font-bold shadow-xs"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Canalizar Alumno
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => onNavigate('solicitudes')}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
             >
-              <option value="all">Todas las Carreras</option>
-              {carreras.map(c => (
-                <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
-              ))}
-            </select>
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              Autorizar / Asignar
+            </button>
 
             <button
               type="button"
@@ -622,11 +680,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }
 
   // ----------------------------------------------------
-  // 4. DASHBOARD DEL ADMINISTRADOR (Requirement 42)
+  // 4. DASHBOARD DEL ADMINISTRADOR (Nivel 1)
   // ----------------------------------------------------
   const totalAlumnos = users.filter(u => u.rol === 'alumno').length;
-  const totalDocentes = users.filter(u => u.rol === 'docente').length;
-  const totalDirectivos = users.filter(u => u.rol === 'director').length;
+  const totalDocentes = users.filter(u => isTeachingRole(u.rol)).length;
+  const totalDirectivos = users.filter(u => u.rol === 'director' || u.rol === 'jefe_carrera').length;
   const solicitudesPendientes = asesorias.filter(a => a.estado === 'pendiente' || a.estado === 'en_revision').length;
   const asesoriasAprobadas = asesorias.filter(a => a.estado === 'aprobada' || a.estado === 'asignada' || a.estado === 'confirmada').length;
   const asesoriasRealizadas = asesorias.filter(a => a.estado === 'realizada' || a.estado === 'cerrada').length;
@@ -715,8 +773,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Docentes</p>
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Personal Docente</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{totalDocentes}</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Directivos/Jefes: {totalDirectivos}</p>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">

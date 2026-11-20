@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { getRoleMeta } from '../../utils/roles';
 
 export const ProfileView: React.FC = () => {
   const { currentUser } = useAuth();
@@ -74,8 +75,8 @@ export const ProfileView: React.FC = () => {
                 </p>
               </div>
 
-              <span className="self-center sm:self-start px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                Rol: {currentUser.rol}
+              <span className={`self-center sm:self-start px-3 py-1 rounded-full text-xs font-bold tracking-wide ${getRoleMeta(currentUser.rol).badgeClass}`}>
+                Nivel {getRoleMeta(currentUser.rol).nivel} • {getRoleMeta(currentUser.rol).label}
               </span>
             </div>
 
@@ -100,6 +101,21 @@ export const ProfileView: React.FC = () => {
                   Ciclo 2026-3
                 </p>
               </div>
+            </div>
+
+            {/* Role Functions */}
+            <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <p className="font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+                Funciones y Atribuciones del Nivel Jerárquico:
+              </p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-slate-600 dark:text-slate-300">
+                {getRoleMeta(currentUser.rol).funciones.map((fn, i) => (
+                  <li key={i} className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>{fn}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

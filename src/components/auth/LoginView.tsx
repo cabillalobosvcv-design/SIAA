@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../../types/siaa';
 import { ThemeToggleButton } from '../common/ThemeToggleButton';
+import { getRoleMeta } from '../../utils/roles';
 
 export const LoginView: React.FC = () => {
   const { login, switchUser } = useAuth();
@@ -36,8 +37,11 @@ export const LoginView: React.FC = () => {
   const demoQuickLogins: { role: UserRole; name: string; email: string; uid: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { role: 'admin', name: 'Mtro. Carlos Mendoza', email: 'admin@siaa.edu.mx', uid: 'user-admin-1', icon: Shield },
     { role: 'director', name: 'Dra. Patricia Valenzuela', email: 'directora.academica@siaa.edu.mx', uid: 'user-dir-1', icon: GraduationCap },
-    { role: 'docente', name: 'Dr. Fernando Aguirre', email: 'fernando.aguirre@siaa.edu.mx', uid: 'user-doc-1', icon: BookOpen },
-    { role: 'alumno', name: 'Mateo Ramírez (Alumno)', email: 'mateo.ramirez@alumno.siaa.edu.mx', uid: 'user-alu-3', icon: UserIcon }
+    { role: 'jefe_carrera', name: 'Mtra. Claudia Navarro', email: 'jefa.itids@siaa.edu.mx', uid: 'user-jefe-1', icon: GraduationCap },
+    { role: 'ptc_tutor', name: 'Dr. Fernando Aguirre', email: 'fernando.aguirre@siaa.edu.mx', uid: 'user-doc-1', icon: BookOpen },
+    { role: 'pa', name: 'Ing. Javier Rocha', email: 'javier.rocha@siaa.edu.mx', uid: 'user-doc-3', icon: BookOpen },
+    { role: 'administrativo_docente', name: 'Lic. Daniel Quiroz', email: 'daniel.quiroz@siaa.edu.mx', uid: 'user-doc-5', icon: BookOpen },
+    { role: 'alumno', name: 'Mateo Ramírez', email: 'mateo.ramirez@alumno.siaa.edu.mx', uid: 'user-alu-3', icon: UserIcon }
   ];
 
   return (
@@ -164,8 +168,8 @@ export const LoginView: React.FC = () => {
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{demo.email}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 border border-slate-200 dark:border-slate-700 group-hover:border-emerald-300 dark:group-hover:border-emerald-700 uppercase shrink-0">
-                      {demo.role}
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 border border-slate-200 dark:border-slate-700 group-hover:border-emerald-300 dark:group-hover:border-emerald-700 shrink-0">
+                      {getRoleMeta(demo.role).shortLabel}
                     </span>
                   </button>
                 );

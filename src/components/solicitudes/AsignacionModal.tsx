@@ -4,6 +4,7 @@ import { Asesoria, Modalidad } from '../../types/siaa';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
 import { AlertCircle, Calendar, Clock, DoorOpen, User, CheckCircle2 } from 'lucide-react';
+import { isTeachingRole, getRoleMeta } from '../../utils/roles';
 
 interface AsignacionModalProps {
   isOpen: boolean;
@@ -22,8 +23,8 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
   const users = SIAADataService.getUsers();
   const aulas = SIAADataService.getAulas();
 
-  // Teachers list
-  const teachers = users.filter(u => u.rol === 'docente' && u.estado === 'activo');
+  // Teachers list (PTC Tutor, PA, Administrativo con Función Docente)
+  const teachers = users.filter(u => isTeachingRole(u.rol) && u.estado === 'activo');
 
   const [selectedDocenteId, setSelectedDocenteId] = useState<string>('');
   const [fecha, setFecha] = useState<string>('');
@@ -165,7 +166,7 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
           >
             {teachers.map(t => (
               <option key={t.uid} value={t.uid}>
-                {t.nombre} {t.apellidoPaterno} {t.apellidoMaterno} ({t.correo})
+                {t.nombre} {t.apellidoPaterno} {t.apellidoMaterno} — {getRoleMeta(t.rol).shortLabel} ({t.correo})
               </option>
             ))}
           </select>

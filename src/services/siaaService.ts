@@ -30,6 +30,7 @@ import {
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { normalizeUserRole } from '../utils/roles';
 
 const STORAGE_KEYS = {
   USERS: 'siaa_users',
@@ -70,7 +71,24 @@ function setStored<T>(key: string, val: T): void {
 export class SIAADataService {
   // Read collections
   static getUsers(): User[] {
-    return getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const users = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const migratedFlag = localStorage.getItem('siaa_roles_v2_migrated');
+    if (!migratedFlag) {
+      const upgraded: User[] = users.map(u => {
+        if (u.uid === 'user-dir-2') return { ...u, rol: 'jefe_carrera', correo: 'jefe.industrial@siaa.edu.mx' };
+        if (u.uid === 'user-doc-3' || u.uid === 'user-doc-4') return { ...u, rol: 'pa' };
+        if (u.uid === 'user-doc-5') return { ...u, rol: 'administrativo_docente' };
+        return { ...u, rol: normalizeUserRole(u.rol as string) };
+      });
+      const jefeSeed = INITIAL_USERS.find(s => s.uid === 'user-jefe-1');
+      if (jefeSeed && !upgraded.some(u => u.uid === jefeSeed.uid)) {
+        upgraded.splice(2, 0, jefeSeed);
+      }
+      setStored(STORAGE_KEYS.USERS, upgraded);
+      localStorage.setItem('siaa_roles_v2_migrated', '1');
+      return upgraded;
+    }
+    return users.map(u => ({ ...u, rol: normalizeUserRole(u.rol as string) }));
   }
 
   static getCarreras(): Carrera[] {
@@ -279,10 +297,15 @@ export class SIAADataService {
     const list = this.getAsesorias();
     setStored(STORAGE_KEYS.ASESORIAS, [newAsesoria, ...list]);
 
-    // Send notifications to administrators and directors
+    // Send notifications to administrators, academic directors, and career heads
     const users = this.getUsers();
-    const adminAndDirs = users.filter(u => u.rol === 'admin' || u.rol === 'director');
-    adminAndDirs.forEach(u => {
+    const managers = users.filter(
+      u =>
+        u.rol === 'admin' ||
+        u.rol === 'director' ||
+        (u.rol === 'jefe_carrera' && (!u.carreraId || u.carreraId === params.carreraId))
+    );
+    managers.forEach(u => {
       this.sendNotification({
         userId: u.uid,
         titulo: 'Nueva Solicitud de Asesoría',

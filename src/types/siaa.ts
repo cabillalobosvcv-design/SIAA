@@ -1,4 +1,11 @@
-export type UserRole = 'admin' | 'director' | 'docente' | 'alumno';
+export type UserRole =
+  | 'admin'
+  | 'director'
+  | 'jefe_carrera'
+  | 'ptc_tutor'
+  | 'pa'
+  | 'administrativo_docente'
+  | 'alumno';
 
 export type UserStatus = 'activo' | 'inactivo';
 

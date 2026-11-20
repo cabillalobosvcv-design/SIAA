@@ -14,6 +14,11 @@ import {
   Trash2
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import {
+  canAuthorizeOrAssign,
+  canRegisterSeguimiento,
+  isTeachingRole
+} from '../../utils/roles';
 
 interface AsesoriasListProps {
   onSelectAdvisory: (id: string) => void;
@@ -45,14 +50,16 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
 
   const asesorias = SIAADataService.getAsesorias();
   const carreras = SIAADataService.getCarreras();
-  const teachers = SIAADataService.getUsers().filter(u => u.rol === 'docente');
+  const teachers = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
 
   // Role filtering
   let displayList = asesorias;
   if (currentRole === 'alumno') {
     displayList = displayList.filter(a => a.alumnoId === currentUser?.uid);
-  } else if (currentRole === 'docente') {
+  } else if (isTeachingRole(currentRole)) {
     displayList = displayList.filter(a => a.docenteAsignadoId === currentUser?.uid);
+  } else if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
+    displayList = displayList.filter(a => a.carreraId === currentUser.carreraId);
   }
 
   // History view filtering: only completed/closed/cancelled
@@ -112,7 +119,8 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
     setRefreshTick(t => t + 1);
   };
 
-  const isAdminOrDir = currentRole === 'admin' || currentRole === 'director';
+  const isAdminOrDir = canAuthorizeOrAssign(currentRole);
+  const isTeacher = isTeachingRole(currentRole);
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -124,7 +132,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               ? 'Historial de Asesorías Académicas'
               : currentRole === 'alumno'
               ? 'Mis Asesorías Académicas'
-              : currentRole === 'docente'
+              : isTeacher
               ? 'Mis Asesorías Asignadas'
               : 'Control y Seguimiento de Asesorías'}
           </h1>
@@ -186,7 +194,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               ))}
             </select>
 
-            {currentRole !== 'docente' && (
+            {!isTeacher && (
               <select
                 value={filterDocente}
                 onChange={(e) => setFilterDocente(e.target.value)}
@@ -313,8 +321,8 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                             </button>
                           )}
 
-                          {/* Seguimiento trigger for teacher or admin */}
-                          {(currentRole === 'docente' || currentRole === 'admin') &&
+                          {/* Seguimiento trigger for teaching roles or admin */}
+                          {canRegisterSeguimiento(currentRole) &&
                             (item.estado === 'confirmada' || item.estado === 'en_proceso' || item.estado === 'realizada') && (
                               <button
                                 type="button"

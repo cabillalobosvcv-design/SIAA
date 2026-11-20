@@ -16,6 +16,11 @@ import {
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import {
+  canAuthorizeOrAssign,
+  canCreateSolicitudForStudents,
+  isTeachingRole
+} from '../../utils/roles';
 
 interface SolicitudesListProps {
   onSelectAdvisory: (id: string) => void;
@@ -52,10 +57,20 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
   void refreshTick;
   const asesorias = SIAADataService.getAsesorias();
 
-  // Role based filtering: Students only see their own requests
+  // Role based filtering
   let displayList = asesorias;
   if (currentRole === 'alumno') {
     displayList = displayList.filter(a => a.alumnoId === currentUser?.uid);
+  } else if (currentRole === 'jefe_carrera' && currentUser?.carreraId) {
+    displayList = displayList.filter(a => a.carreraId === currentUser.carreraId);
+  } else if (isTeachingRole(currentRole)) {
+    displayList = displayList.filter(
+      a =>
+        a.docenteAsignadoId === currentUser?.uid ||
+        a.solicitanteId === currentUser?.uid ||
+        !currentUser?.carreraId ||
+        a.carreraId === currentUser.carreraId
+    );
   }
 
   // Filter by search query
@@ -109,12 +124,16 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
     setRefreshTick(t => t + 1);
   };
 
-  const canAuthorize = currentRole === 'admin' || currentRole === 'director';
+  const canAuthorize = canAuthorizeOrAssign(currentRole);
+  const canCreateNew = currentRole === 'alumno' || canCreateSolicitudForStudents(currentRole);
 
   const canEditSolicitud = (a: Asesoria) => {
     if (canAuthorize) return true;
     if (currentRole === 'alumno' && a.alumnoId === currentUser?.uid) {
       return a.estado === 'pendiente' || a.estado === 'en_revision' || a.estado === 'rechazada';
+    }
+    if (canCreateSolicitudForStudents(currentRole) && a.solicitanteId === currentUser?.uid) {
+      return a.estado === 'pendiente' || a.estado === 'en_revision';
     }
     return false;
   };
@@ -123,6 +142,9 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
     if (canAuthorize) return true;
     if (currentRole === 'alumno' && a.alumnoId === currentUser?.uid) {
       return a.estado === 'pendiente' || a.estado === 'rechazada' || a.estado === 'cancelada';
+    }
+    if (canCreateSolicitudForStudents(currentRole) && a.solicitanteId === currentUser?.uid) {
+      return a.estado === 'pendiente' || a.estado === 'cancelada';
     }
     return false;
   };
@@ -140,14 +162,16 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenNewModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors shrink-0"
-        >
-          <PlusCircle className="w-4 h-4 text-amber-400" />
-          Nueva Solicitud
-        </button>
+        {canCreateNew && (
+          <button
+            type="button"
+            onClick={onOpenNewModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors shrink-0"
+          >
+            <PlusCircle className="w-4 h-4 text-amber-400" />
+            {currentRole === 'alumno' ? 'Nueva Solicitud' : 'Registrar / Canalizar Solicitud'}
+          </button>
+        )}
       </div>
 
       {/* Filter Toolbar */}

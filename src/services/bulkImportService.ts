@@ -13,6 +13,7 @@ import {
   UserRole,
   UserStatus
 } from '../types/siaa';
+import { isTeachingRole, normalizeUserRole } from '../utils/roles';
 
 export type BulkEntityType =
   | 'usuarios'
@@ -114,12 +115,12 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
       },
       {
         key: 'rol',
-        label: 'Rol',
+        label: 'Rol / Nivel Jerárquico',
         required: true,
         type: 'Lista',
-        example: 'alumno',
-        allowedValues: 'alumno | docente | director | admin',
-        description: 'Perfil de acceso dentro de SIAA.'
+        example: 'ptc_tutor',
+        allowedValues: 'admin | director | jefe_carrera | ptc_tutor | pa | administrativo_docente | alumno',
+        description: 'Nivel jerárquico dentro de SIAA.'
       },
       {
         key: 'matricula',
@@ -134,8 +135,8 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
         label: 'No. Empleado',
         required: false,
         type: 'Texto',
-        example: 'DOC-209',
-        description: 'Recomendado cuando rol = docente, director o admin.'
+        example: 'PTC-209',
+        description: 'Recomendado para personal directivo, jefes de carrera, docentes y administrativos.'
       },
       {
         key: 'telefono',
@@ -199,9 +200,9 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
         nombre: 'Elena',
         apellidoPaterno: 'Vega',
         apellidoMaterno: 'Campos',
-        rol: 'docente',
+        rol: 'ptc_tutor',
         matricula: '',
-        numeroEmpleado: 'DOC-206',
+        numeroEmpleado: 'PTC-206',
         telefono: '55-9870-1122',
         carreraCodigo: 'ITIDS',
         grupoNombre: '',
@@ -964,8 +965,31 @@ export async function parseAndValidateBulkFile(type: BulkEntityType, file: File)
       }
       if (!rowData.nombre) errors.push('Nombre obligatorio');
       if (!rowData.apellidoPaterno) errors.push('Apellido paterno obligatorio');
-      if (!['alumno', 'docente', 'director', 'admin'].includes(rol)) {
-        errors.push('Rol inválido (use: alumno, docente, director o admin)');
+      const validRoles = [
+        'admin',
+        'administrador',
+        'director',
+        'director academico',
+        'director académico',
+        'jefe_carrera',
+        'jefe de carrera',
+        'jefes de carrera',
+        'ptc_tutor',
+        'ptc',
+        'tutor',
+        'docente',
+        'profesor de tiempo completo',
+        'profesor de tiempo completo (tutor)',
+        'pa',
+        'profesor de asignatura',
+        'profesor de asignatura (pa)',
+        'administrativo_docente',
+        'administrativo con funcion docente',
+        'administrativo con función docente',
+        'alumno'
+      ];
+      if (!validRoles.includes(rol)) {
+        errors.push('Rol inválido (use: admin, director, jefe_carrera, ptc_tutor, pa, administrativo_docente o alumno)');
       }
       if (!estado) errors.push('Estado inválido (use: activo o inactivo)');
 
@@ -1063,12 +1087,12 @@ export async function parseAndValidateBulkFile(type: BulkEntityType, file: File)
       summary = `${rowData.edificio} • Cap. ${rowData.capacidad || '--'} (${rowData.tipo || '--'})`;
     } else if (type === 'disponibilidad') {
       const correo = rowData.docenteCorreo.toLowerCase();
-      const docMatch = existingUsers.find(u => u.correo.toLowerCase() === correo && u.rol === 'docente');
+      const docMatch = existingUsers.find(u => u.correo.toLowerCase() === correo && isTeachingRole(u.rol));
       const dia = normalizeDiaSemana(rowData.diaSemana);
       const modalidad = (rowData.modalidad || 'presencial').toLowerCase();
       const cupo = rowData.cupoMaximo ? Number(rowData.cupoMaximo) : 4;
 
-      if (!docMatch) errors.push(`Docente "${rowData.docenteCorreo || ''}" no encontrado o no tiene rol docente`);
+      if (!docMatch) errors.push(`Docente "${rowData.docenteCorreo || ''}" no encontrado o no tiene función docente`);
       if (!dia) errors.push('Día inválido (Lunes a Sábado)');
       if (!isValidTime(rowData.horaInicio)) errors.push('Hora inicio inválida (use HH:mm)');
       if (!isValidTime(rowData.horaFin)) errors.push('Hora fin inválida (use HH:mm)');
@@ -1136,7 +1160,7 @@ export function applyBulkImport(
     validRows.forEach((row, idx) => {
       const d = row.data;
       const correo = d.correo.toLowerCase();
-      const rol = d.rol.toLowerCase() as UserRole;
+      const rol: UserRole = normalizeUserRole(d.rol);
       const estado = normalizeEstado(d.estado) || 'activo';
       const carr = d.carreraCodigo
         ? carreras.find(c => c.codigo.toUpperCase() === d.carreraCodigo.toUpperCase())
@@ -1396,7 +1420,7 @@ export function applyBulkImport(
     const list = [...SIAADataService.getDisponibilidadesRecurrentes()];
     validRows.forEach((row, idx) => {
       const d = row.data;
-      const doc = users.find(u => u.correo.toLowerCase() === d.docenteCorreo.toLowerCase() && u.rol === 'docente');
+      const doc = users.find(u => u.correo.toLowerCase() === d.docenteCorreo.toLowerCase() && isTeachingRole(u.rol));
       const dia = normalizeDiaSemana(d.diaSemana);
       if (!doc || !dia) {
         skipped++;

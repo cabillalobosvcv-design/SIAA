@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { isTeachingRole, getRoleMeta } from '../../utils/roles';
 
 interface DisponibilidadViewProps {
   onOpenBulkImport?: () => void;
@@ -20,11 +21,18 @@ interface DisponibilidadViewProps {
 
 export const DisponibilidadView: React.FC<DisponibilidadViewProps> = ({ onOpenBulkImport }) => {
   const { currentUser, currentRole } = useAuth();
-  const docentes = SIAADataService.getUsers().filter(u => u.rol === 'docente');
+  const allDocentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
+  const docentes =
+    currentRole === 'jefe_carrera' && currentUser?.carreraId
+      ? allDocentes.filter(d => !d.carreraId || d.carreraId === currentUser.carreraId)
+      : allDocentes;
 
-  // If docente, lock to themselves. If admin, allow selecting teacher.
+  const isTeacherSelf = isTeachingRole(currentRole);
+  const canSwitchDocente = currentRole === 'admin' || currentRole === 'jefe_carrera';
+
+  // If teaching role, lock to themselves. If admin/jefe_carrera, allow selecting teacher.
   const [selectedDocenteId, setSelectedDocenteId] = useState<string>(
-    currentRole === 'docente' && currentUser ? currentUser.uid : (docentes[0]?.uid || '')
+    isTeacherSelf && currentUser ? currentUser.uid : (docentes[0]?.uid || '')
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -130,22 +138,24 @@ export const DisponibilidadView: React.FC<DisponibilidadViewProps> = ({ onOpenBu
       <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 font-serif">
-            {currentRole === 'docente' ? 'Mi Disponibilidad Semanal de Asesoría' : 'Gestión de Disponibilidad Docente'}
+            {isTeacherSelf ? 'Mi Disponibilidad Semanal de Asesoría' : 'Gestión de Disponibilidad Docente'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Configura, modifica o elimina los días, franjas horarias y cupos máximos en que puedes atender a los alumnos.
+            Configura, modifica o elimina los días, franjas horarias y cupos máximos para asesorías ({currentRole ? getRoleMeta(currentRole).label : ''}).
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {currentRole === 'admin' && (
+          {canSwitchDocente && (
             <select
               value={selectedDocenteId}
               onChange={(e) => setSelectedDocenteId(e.target.value)}
               className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium focus:ring-2 focus:ring-emerald-700"
             >
               {docentes.map(d => (
-                <option key={d.uid} value={d.uid}>{d.nombre} {d.apellidoPaterno}</option>
+                <option key={d.uid} value={d.uid}>
+                  {d.nombre} {d.apellidoPaterno} ({getRoleMeta(d.rol).shortLabel})
+                </option>
               ))}
             </select>
           )}

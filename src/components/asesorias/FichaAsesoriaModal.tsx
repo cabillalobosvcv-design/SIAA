@@ -3,6 +3,8 @@ import { Modal } from '../common/Modal';
 import { Asesoria } from '../../types/siaa';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
 import { SIAADataService } from '../../services/siaaService';
+import { useAuth } from '../../context/AuthContext';
+import { canRegisterSeguimiento } from '../../utils/roles';
 import {
   FileDown,
   User,
@@ -31,7 +33,10 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
   asesoria,
   onOpenSeguimiento
 }) => {
+  const { currentRole } = useAuth();
   if (!asesoria) return null;
+
+  const canFollowUp = canRegisterSeguimiento(currentRole);
 
   const handleDownloadPDF = () => {
     SIAADataService.exportFichaPDF(asesoria);
@@ -66,7 +71,7 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
               <FileDown className="w-4 h-4 text-amber-400" />
               Descargar Ficha PDF
             </button>
-            {onOpenSeguimiento && (asesoria.estado === 'confirmada' || asesoria.estado === 'en_proceso' || asesoria.estado === 'realizada') && (
+            {onOpenSeguimiento && canFollowUp && (asesoria.estado === 'confirmada' || asesoria.estado === 'en_proceso' || asesoria.estado === 'realizada') && (
               <button
                 type="button"
                 onClick={() => {

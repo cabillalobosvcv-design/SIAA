@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types/siaa';
+import { getRoleMeta } from '../../utils/roles';
 
 export type NavView =
   | 'dashboard'
@@ -67,22 +68,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { currentRole, currentUser } = useAuth();
 
+  const allRoles: UserRole[] = [
+    'admin',
+    'director',
+    'jefe_carrera',
+    'ptc_tutor',
+    'pa',
+    'administrativo_docente',
+    'alumno'
+  ];
+  const teachingRoles: UserRole[] = ['ptc_tutor', 'pa', 'administrativo_docente'];
+
   const navItems: NavItem[] = [
     // Dashboard (All)
-    { id: 'dashboard', label: currentRole === 'alumno' ? 'Inicio' : 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'director', 'docente', 'alumno'] },
+    { id: 'dashboard', label: currentRole === 'alumno' ? 'Inicio' : 'Dashboard', icon: LayoutDashboard, roles: allRoles },
     
-    // Alumno Direct Actions
-    { id: 'solicitar', label: 'Solicitar Asesoría', icon: PlusCircle, roles: ['alumno'] },
-    { id: 'solicitudes', label: currentRole === 'alumno' ? 'Mis Solicitudes' : 'Solicitudes', icon: FileQuestion, roles: ['admin', 'director', 'docente', 'alumno'] },
-    { id: 'asesorias', label: currentRole === 'alumno' ? 'Mis Asesorías' : currentRole === 'docente' ? 'Mis Asesorías' : 'Asesorías', icon: FileCheck2, roles: ['admin', 'director', 'docente', 'alumno'] },
+    // Direct Request Action (Alumno, PTC Tutor, Admin Docente, Jefe de Carrera)
+    {
+      id: 'solicitar',
+      label: currentRole === 'alumno' ? 'Solicitar Asesoría' : 'Canalizar / Solicitar',
+      icon: PlusCircle,
+      roles: ['alumno', 'ptc_tutor', 'administrativo_docente', 'jefe_carrera']
+    },
+    { id: 'solicitudes', label: currentRole === 'alumno' ? 'Mis Solicitudes' : 'Solicitudes', icon: FileQuestion, roles: allRoles },
+    {
+      id: 'asesorias',
+      label: currentRole === 'alumno' || (currentRole && teachingRoles.includes(currentRole)) ? 'Mis Asesorías' : 'Asesorías',
+      icon: FileCheck2,
+      roles: allRoles
+    },
     
     // Calendar (All)
-    { id: 'calendario', label: 'Calendario', icon: Calendar, roles: ['admin', 'director', 'docente', 'alumno'] },
+    { id: 'calendario', label: 'Calendario', icon: Calendar, roles: allRoles },
     
     // Teacher & Specific
-    { id: 'disponibilidad', label: currentRole === 'docente' ? 'Mi Disponibilidad' : 'Disponibilidad Docente', icon: Clock, roles: ['admin', 'docente'] },
-    { id: 'seguimiento', label: 'Registro de Seguimiento', icon: ClipboardList, roles: ['docente'] },
-    { id: 'historial', label: 'Historial de Asesorías', icon: History, roles: ['director', 'docente', 'alumno'] },
+    {
+      id: 'disponibilidad',
+      label: currentRole && teachingRoles.includes(currentRole) ? 'Mi Disponibilidad' : 'Disponibilidad Docente',
+      icon: Clock,
+      roles: ['admin', 'jefe_carrera', ...teachingRoles]
+    },
+    { id: 'seguimiento', label: 'Registro de Seguimiento', icon: ClipboardList, roles: teachingRoles },
+    { id: 'historial', label: 'Historial de Asesorías', icon: History, roles: ['director', 'jefe_carrera', ...teachingRoles, 'alumno'] },
 
     // Admin Catalogs & Management
     { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users, roles: ['admin'] },
@@ -93,15 +120,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'aulas', label: 'Aulas y Espacios', icon: DoorOpen, roles: ['admin'] },
     { id: 'carga_masiva', label: 'Carga Masiva y Plantillas', icon: Upload, roles: ['admin'] },
 
-    // Reports (Admin, Director)
-    { id: 'reportes', label: 'Reportes y Estadísticas', icon: FileSpreadsheet, roles: ['admin', 'director'] },
+    // Reports (Admin, Director, Jefe de Carrera)
+    { id: 'reportes', label: 'Reportes y Estadísticas', icon: FileSpreadsheet, roles: ['admin', 'director', 'jefe_carrera'] },
 
     // Audit & Settings (Admin)
     { id: 'auditoria', label: 'Auditoría del Sistema', icon: ShieldCheck, roles: ['admin'] },
     { id: 'configuracion', label: 'Configuración', icon: Settings, roles: ['admin'] },
 
-    // Profile (Alumno, Docente)
-    { id: 'perfil', label: 'Mi Perfil', icon: UserCircle, roles: ['alumno', 'docente', 'director'] }
+    // Profile
+    { id: 'perfil', label: 'Mi Perfil', icon: UserCircle, roles: allRoles }
   ];
 
   const allowedItems = navItems.filter(
@@ -126,16 +153,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Institutional Section Banner */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
-            Módulo Institucional
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
+              Módulo Institucional
+            </p>
+            {currentRole && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300">
+                Nivel {getRoleMeta(currentRole).nivel}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-500"></span>
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 capitalize">
-              {currentRole === 'admin' && 'Administración Central'}
-              {currentRole === 'director' && 'Dirección Académica'}
-              {currentRole === 'docente' && 'Portal del Docente'}
-              {currentRole === 'alumno' && 'Portal del Estudiante'}
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-500 shrink-0"></span>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+              {currentRole ? getRoleMeta(currentRole).portalTitle : 'Portal SIAA'}
             </p>
           </div>
         </div>
