@@ -5,6 +5,7 @@ import {
   Grupo,
   Materia,
   Aula,
+  TipoEspacio,
   DisponibilidadRecurrente,
   DisponibilidadEspecifica,
   Asesoria,
@@ -23,6 +24,7 @@ import {
   INITIAL_GRUPOS,
   INITIAL_MATERIAS,
   INITIAL_AULAS,
+  INITIAL_TIPOS_ESPACIO,
   INITIAL_DISPONIBILIDADES_RECURRENTES,
   INITIAL_DISPONIBILIDADES_ESPECIFICAS,
   INITIAL_ASESORIAS,
@@ -41,6 +43,7 @@ const STORAGE_KEYS = {
   GRUPOS: 'siaa_grupos',
   MATERIAS: 'siaa_materias',
   AULAS: 'siaa_aulas',
+  TIPOS_ESPACIO: 'siaa_tipos_espacio',
   DISP_REC: 'siaa_disp_recurrentes',
   DISP_ESP: 'siaa_disp_especificas',
   ASESORIAS: 'siaa_asesorias',
@@ -88,6 +91,44 @@ export function normalizePeriodoAndAnio(
   }
 
   return { periodo, anio };
+}
+
+const LEGACY_SPACE_TYPE_MAP: Record<string, string> = {
+  aula: 'Aula Teórica',
+  'aula teorica': 'Aula Teórica',
+  'aula teórica': 'Aula Teórica',
+  sala_computo: 'Sala de Cómputo',
+  'sala de computo': 'Sala de Cómputo',
+  'sala de cómputo': 'Sala de Cómputo',
+  laboratorio: 'Laboratorio',
+  taller: 'Taller',
+  cubiculo: 'Cubículo de Asesorías',
+  'cubículo': 'Cubículo de Asesorías',
+  'cubiculo de asesorias': 'Cubículo de Asesorías',
+  'cubículo de asesorías': 'Cubículo de Asesorías',
+  virtual: 'Sala Audiovisual / Virtual',
+  audiovisual: 'Sala Audiovisual / Virtual'
+};
+
+export function normalizeTipoEspacioNombre(raw?: string, configuredTipos?: TipoEspacio[]): string {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return 'Aula Teórica';
+  const lower = trimmed.toLowerCase();
+  if (configuredTipos && configuredTipos.length > 0) {
+    const exactMatch = configuredTipos.find(t => t.nombre.trim().toLowerCase() === lower);
+    if (exactMatch) return exactMatch.nombre;
+  }
+  const legacyTarget = LEGACY_SPACE_TYPE_MAP[lower];
+  if (legacyTarget) {
+    if (configuredTipos && configuredTipos.length > 0) {
+      const configuredLegacy = configuredTipos.find(
+        t => t.nombre.trim().toLowerCase() === legacyTarget.toLowerCase()
+      );
+      if (configuredLegacy) return configuredLegacy.nombre;
+    }
+    return legacyTarget;
+  }
+  return trimmed;
 }
 
 type SIAADataEventName =
@@ -204,8 +245,16 @@ export class SIAADataService {
     return getStored<Materia[]>(STORAGE_KEYS.MATERIAS, INITIAL_MATERIAS);
   }
 
+  static getTiposEspacio(): TipoEspacio[] {
+    return getStored<TipoEspacio[]>(STORAGE_KEYS.TIPOS_ESPACIO, INITIAL_TIPOS_ESPACIO);
+  }
+
   static getAulas(): Aula[] {
-    return getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS);
+    const tipos = this.getTiposEspacio();
+    return getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS).map(aula => ({
+      ...aula,
+      tipo: normalizeTipoEspacioNombre(aula.tipo, tipos)
+    }));
   }
 
   static getDisponibilidadesRecurrentes(docenteId?: string): DisponibilidadRecurrente[] {
@@ -1239,10 +1288,165 @@ export class SIAADataService {
     return true;
   }
 
+  static addTipoEspacio(tipo: Omit<TipoEspacio, 'id'>, actor?: User): TipoEspacio {
+    const list = this.getTiposEspacio();
+    const cleanName = tipo.nombre.trim();
+    const existing = list.find(t => t.nombre.trim().toLowerCase() === cleanName.toLowerCase());
+    if (existing) {
+      if (existing.estado === 'inactivo' && tipo.estado === 'activo') {
+        return this.updateTipoEspacio(existing.id, { estado: 'activo', descripcion: tipo.descripcion ?? existing.descripcion }, actor) || existing;
+      }
+      return existing;
+    }
+
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    const newTipo: TipoEspacio = {
+      ...tipo,
+      nombre: cleanName,
+      descripcion: tipo.descripcion?.trim() || undefined,
+      id: `tip-esp-${Date.now()}`,
+      fechaCreacion: tipo.fechaCreacion || today
+    };
+    list.push(newTipo);
+    setStored(STORAGE_KEYS.TIPOS_ESPACIO, list);
+
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_TIPO_ESPACIO_CREADO',
+        modulo: 'Catálogos',
+        documentoAfectado: newTipo.nombre,
+        detalles: `Nuevo tipo de espacio registrado: ${newTipo.nombre}`
+      });
+    }
+    return newTipo;
+  }
+
+  static updateTipoEspacio(id: string, updates: Partial<TipoEspacio>, actor?: User): TipoEspacio | undefined {
+    const list = this.getTiposEspacio();
+    const idx = list.findIndex(t => t.id === id);
+    if (idx === -1) return undefined;
+
+    const previousName = list[idx].nombre;
+    const nextName = updates.nombre !== undefined ? updates.nombre.trim() : previousName;
+    if (!nextName) return undefined;
+
+    const updated: TipoEspacio = {
+      ...list[idx],
+      ...updates,
+      nombre: nextName,
+      descripcion: updates.descripcion !== undefined ? (updates.descripcion.trim() || undefined) : list[idx].descripcion
+    };
+    list[idx] = updated;
+    setStored(STORAGE_KEYS.TIPOS_ESPACIO, list);
+
+    // Cascade rename onto existing Aulas that used the previous space type name
+    if (previousName.trim().toLowerCase() !== nextName.toLowerCase()) {
+      const aulas = getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS);
+      let modifiedAulas = false;
+      const updatedAulas = aulas.map(a => {
+        const normalizedCurrent = normalizeTipoEspacioNombre(a.tipo);
+        if (
+          a.tipo.trim().toLowerCase() === previousName.trim().toLowerCase() ||
+          normalizedCurrent.toLowerCase() === previousName.trim().toLowerCase()
+        ) {
+          modifiedAulas = true;
+          return { ...a, tipo: nextName };
+        }
+        return a;
+      });
+      if (modifiedAulas) {
+        setStored(STORAGE_KEYS.AULAS, updatedAulas);
+      }
+    }
+
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_TIPO_ESPACIO_ACTUALIZADO',
+        modulo: 'Catálogos',
+        documentoAfectado: nextName,
+        detalles:
+          previousName !== nextName
+            ? `Tipo de espacio renombrado de "${previousName}" a "${nextName}"`
+            : `Tipo de espacio actualizado: ${nextName} (${updated.estado})`
+      });
+    }
+
+    return updated;
+  }
+
+  static deleteTipoEspacio(id: string, actor?: User, replacementTipoNombre?: string): boolean {
+    const list = this.getTiposEspacio();
+    const target = list.find(t => t.id === id);
+    if (!target) return false;
+
+    if (replacementTipoNombre && replacementTipoNombre.trim()) {
+      const targetLower = target.nombre.trim().toLowerCase();
+      const aulas = getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS);
+      let changed = false;
+      const reassigned = aulas.map(a => {
+        const normalized = normalizeTipoEspacioNombre(a.tipo);
+        if (a.tipo.trim().toLowerCase() === targetLower || normalized.toLowerCase() === targetLower) {
+          changed = true;
+          return { ...a, tipo: replacementTipoNombre.trim() };
+        }
+        return a;
+      });
+      if (changed) {
+        setStored(STORAGE_KEYS.AULAS, reassigned);
+      }
+    }
+
+    setStored(STORAGE_KEYS.TIPOS_ESPACIO, list.filter(t => t.id !== id));
+
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_TIPO_ESPACIO_ELIMINADO',
+        modulo: 'Catálogos',
+        documentoAfectado: target.nombre,
+        detalles: replacementTipoNombre
+          ? `Tipo de espacio eliminado: ${target.nombre} (espacios reasignados a ${replacementTipoNombre})`
+          : `Tipo de espacio eliminado: ${target.nombre}`
+      });
+    }
+    return true;
+  }
+
+  static ensureTipoEspacioExists(rawNombre: string): string {
+    const list = this.getTiposEspacio();
+    const resolved = normalizeTipoEspacioNombre(rawNombre, list);
+    const exists = list.some(t => t.nombre.trim().toLowerCase() === resolved.toLowerCase());
+    if (!exists && resolved) {
+      this.addTipoEspacio({
+        nombre: resolved,
+        descripcion: 'Registrado desde importación o catálogo de aulas',
+        estado: 'activo'
+      });
+    }
+    return resolved;
+  }
+
+  static saveTiposEspacioBatch(items: TipoEspacio[]): void {
+    setStored(STORAGE_KEYS.TIPOS_ESPACIO, items);
+  }
+
   static addAula(aula: Omit<Aula, 'id'>): Aula {
     const list = this.getAulas();
+    const resolvedTipo = this.ensureTipoEspacioExists(aula.tipo);
     const newAula: Aula = {
       ...aula,
+      tipo: resolvedTipo,
       id: `aula-${Date.now()}`
     };
     list.push(newAula);
@@ -1254,7 +1458,11 @@ export class SIAADataService {
     const list = this.getAulas();
     const idx = list.findIndex(a => a.id === id);
     if (idx === -1) return undefined;
-    list[idx] = { ...list[idx], ...updates };
+    const resolvedUpdates = { ...updates };
+    if (resolvedUpdates.tipo !== undefined) {
+      resolvedUpdates.tipo = this.ensureTipoEspacioExists(resolvedUpdates.tipo);
+    }
+    list[idx] = { ...list[idx], ...resolvedUpdates };
     setStored(STORAGE_KEYS.AULAS, list);
     return list[idx];
   }
@@ -1396,6 +1604,7 @@ export class SIAADataService {
     localStorage.removeItem(STORAGE_KEYS.GRUPOS);
     localStorage.removeItem(STORAGE_KEYS.MATERIAS);
     localStorage.removeItem(STORAGE_KEYS.AULAS);
+    localStorage.removeItem(STORAGE_KEYS.TIPOS_ESPACIO);
     localStorage.removeItem(STORAGE_KEYS.DISP_REC);
     localStorage.removeItem(STORAGE_KEYS.DISP_ESP);
     localStorage.removeItem(STORAGE_KEYS.ASESORIAS);

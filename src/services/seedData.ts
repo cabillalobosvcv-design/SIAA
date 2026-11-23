@@ -5,6 +5,7 @@ import {
   Grupo,
   Materia,
   Aula,
+  TipoEspacio,
   DisponibilidadRecurrente,
   DisponibilidadEspecifica,
   Asesoria,
@@ -58,12 +59,57 @@ export const INITIAL_MATERIAS: Materia[] = [
   { id: 'mat-10', nombre: 'Ingeniería de Métodos y Tiempos', codigo: 'MET-401', carreraId: 'carr-2', cuatrimestreId: 'cuat-4', descripcion: 'Estudio del trabajo, ergonomía y balanceo de líneas.', estado: 'activo' }
 ];
 
+export const INITIAL_TIPOS_ESPACIO: TipoEspacio[] = [
+  {
+    id: 'tip-esp-1',
+    nombre: 'Aula Teórica',
+    descripcion: 'Salón convencional para asesorías grupales y sesiones teóricas.',
+    estado: 'activo',
+    fechaCreacion: '2025-01-15'
+  },
+  {
+    id: 'tip-esp-2',
+    nombre: 'Sala de Cómputo',
+    descripcion: 'Espacio equipado con computadoras y software especializado.',
+    estado: 'activo',
+    fechaCreacion: '2025-01-15'
+  },
+  {
+    id: 'tip-esp-3',
+    nombre: 'Laboratorio',
+    descripcion: 'Laboratorio técnico, de redes, electrónica o ciencias.',
+    estado: 'activo',
+    fechaCreacion: '2025-01-15'
+  },
+  {
+    id: 'tip-esp-4',
+    nombre: 'Taller',
+    descripcion: 'Área práctica para manufactura, diseño o ingeniería aplicada.',
+    estado: 'activo',
+    fechaCreacion: '2025-01-15'
+  },
+  {
+    id: 'tip-esp-5',
+    nombre: 'Cubículo de Asesorías',
+    descripcion: 'Espacio privado para tutoría individual y seguimiento académico.',
+    estado: 'activo',
+    fechaCreacion: '2025-01-15'
+  },
+  {
+    id: 'tip-esp-6',
+    nombre: 'Sala Audiovisual / Virtual',
+    descripcion: 'Sala equipada para sesiones híbridas y videoconferencias.',
+    estado: 'activo',
+    fechaCreacion: '2025-01-15'
+  }
+];
+
 export const INITIAL_AULAS: Aula[] = [
-  { id: 'aul-1', nombre: 'Aula Magna 101', edificio: 'Edificio A', capacidad: 40, ubicacion: 'Planta Baja', tipo: 'aula', estado: 'activo' },
-  { id: 'aul-2', nombre: 'Laboratorio de Cómputo 3', edificio: 'Edificio B - Tecnologías', capacidad: 30, ubicacion: 'Segundo Piso', tipo: 'sala_computo', estado: 'activo' },
-  { id: 'aul-3', nombre: 'Laboratorio de Redes y Sistemas', edificio: 'Edificio B - Tecnologías', capacidad: 25, ubicacion: 'Primer Piso', tipo: 'laboratorio', estado: 'activo' },
-  { id: 'aul-4', nombre: 'Aula de Asesorías Personalizadas 204', edificio: 'Edificio C - Cubículos', capacidad: 10, ubicacion: 'Segundo Piso', tipo: 'aula', estado: 'activo' },
-  { id: 'aul-5', nombre: 'Taller de Ergonomía y Manufactura', edificio: 'Edificio D - Ingenierías', capacidad: 35, ubicacion: 'Planta Baja', tipo: 'taller', estado: 'activo' }
+  { id: 'aul-1', nombre: 'Aula Magna 101', edificio: 'Edificio A', capacidad: 40, ubicacion: 'Planta Baja', tipo: 'Aula Teórica', estado: 'activo' },
+  { id: 'aul-2', nombre: 'Laboratorio de Cómputo 3', edificio: 'Edificio B - Tecnologías', capacidad: 30, ubicacion: 'Segundo Piso', tipo: 'Sala de Cómputo', estado: 'activo' },
+  { id: 'aul-3', nombre: 'Laboratorio de Redes y Sistemas', edificio: 'Edificio B - Tecnologías', capacidad: 25, ubicacion: 'Primer Piso', tipo: 'Laboratorio', estado: 'activo' },
+  { id: 'aul-4', nombre: 'Aula de Asesorías Personalizadas 204', edificio: 'Edificio C - Cubículos', capacidad: 10, ubicacion: 'Segundo Piso', tipo: 'Cubículo de Asesorías', estado: 'activo' },
+  { id: 'aul-5', nombre: 'Taller de Ergonomía y Manufactura', edificio: 'Edificio D - Ingenierías', capacidad: 35, ubicacion: 'Planta Baja', tipo: 'Taller', estado: 'activo' }
 ];
 
 export const INITIAL_USERS: User[] = [

@@ -529,7 +529,7 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
         required: true,
         type: 'Texto',
         example: 'Aula Teórica',
-        description: 'Ej. aula, sala_computo, laboratorio, taller, Aula Teórica.'
+        description: 'Tipo configurable (ej. Aula Teórica, Sala de Cómputo, Laboratorio, Taller, Cubículo de Asesorías).'
       },
       {
         key: 'ubicacion',
@@ -554,7 +554,7 @@ export const BULK_ENTITY_SPECS: Record<BulkEntityType, BulkEntitySpec> = {
         nombre: 'Laboratorio de Software 4',
         edificio: 'Edificio B - Tecnologías',
         capacidad: 28,
-        tipo: 'sala_computo',
+        tipo: 'Sala de Cómputo',
         ubicacion: 'Segundo Piso',
         estado: 'activo'
       }
@@ -1575,6 +1575,7 @@ export function applyBulkImport(
       const d = row.data;
       const estado = normalizeEstado(d.estado) || 'activo';
       const capacidad = Number(d.capacidad);
+      const tipoNormalizado = SIAADataService.ensureTipoEspacioExists(d.tipo);
       const existingIdx = list.findIndex(a => a.nombre.toLowerCase() === d.nombre.toLowerCase());
 
       if (existingIdx >= 0) {
@@ -1587,7 +1588,7 @@ export function applyBulkImport(
           nombre: d.nombre,
           edificio: d.edificio,
           capacidad,
-          tipo: d.tipo,
+          tipo: tipoNormalizado,
           ubicacion: d.ubicacion || list[existingIdx].ubicacion,
           estado
         };
@@ -1598,7 +1599,7 @@ export function applyBulkImport(
           nombre: d.nombre,
           edificio: d.edificio,
           capacidad,
-          tipo: d.tipo,
+          tipo: tipoNormalizado,
           ubicacion: d.ubicacion || undefined,
           estado
         };

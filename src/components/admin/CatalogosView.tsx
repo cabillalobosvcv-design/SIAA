@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SIAADataService, OFFICIAL_PERIODS, normalizePeriodoAndAnio } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
-import { PeriodoOficial } from '../../types/siaa';
+import { PeriodoOficial, TipoEspacio, UserStatus } from '../../types/siaa';
 import {
   GraduationCap,
   Layers,
@@ -13,7 +13,11 @@ import {
   CheckCircle2,
   Trash2,
   Edit2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  SlidersHorizontal,
+  Plus,
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -57,6 +61,25 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   const [edificio, setEdificio] = useState('');
   const [capacidad, setCapacidad] = useState(30);
   const [tipoEspacio, setTipoEspacio] = useState('Aula Teórica');
+  const [aulaTipoFilter, setAulaTipoFilter] = useState<string>('todos');
+
+  // Inline quick space-type creation inside Aula modal
+  const [showInlineNewTipo, setShowInlineNewTipo] = useState(false);
+  const [inlineNewTipoNombre, setInlineNewTipoNombre] = useState('');
+
+  // Space Types manager modal state
+  const [isTiposModalOpen, setIsTiposModalOpen] = useState(false);
+  const [returnToAulaModal, setReturnToAulaModal] = useState(false);
+  const [editingTipoId, setEditingTipoId] = useState<string | null>(null);
+  const [tipoFormNombre, setTipoFormNombre] = useState('');
+  const [tipoFormDescripcion, setTipoFormDescripcion] = useState('');
+  const [tipoFormEstado, setTipoFormEstado] = useState<UserStatus>('activo');
+  const [tipoFormError, setTipoFormError] = useState<string | null>(null);
+  const [deleteTipoTarget, setDeleteTipoTarget] = useState<{
+    tipo: TipoEspacio;
+    affectedCount: number;
+    replacementNombre: string;
+  } | null>(null);
 
   void refreshTick;
   const carreras = SIAADataService.getCarreras();
@@ -64,6 +87,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   const cuatrimestres = SIAADataService.getCuatrimestres();
   const materias = SIAADataService.getMaterias();
   const aulas = SIAADataService.getAulas();
+  const tiposEspacio = SIAADataService.getTiposEspacio();
+  const activeTiposEspacio = tiposEspacio.filter(t => t.estado === 'activo');
 
   const q = search.trim().toLowerCase();
   const filteredCarreras = q
@@ -77,14 +102,17 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
           (m.carreraNombre || '').toLowerCase().includes(q)
       )
     : materias;
-  const filteredAulas = q
-    ? aulas.filter(
-        a =>
-          a.nombre.toLowerCase().includes(q) ||
-          a.edificio.toLowerCase().includes(q) ||
-          a.tipo.toLowerCase().includes(q)
-      )
-    : aulas;
+  const filteredAulas = aulas.filter(a => {
+    const matchesSearch =
+      !q ||
+      a.nombre.toLowerCase().includes(q) ||
+      a.edificio.toLowerCase().includes(q) ||
+      a.tipo.toLowerCase().includes(q);
+    const matchesType =
+      aulaTipoFilter === 'todos' ||
+      a.tipo.trim().toLowerCase() === aulaTipoFilter.trim().toLowerCase();
+    return matchesSearch && matchesType;
+  });
   const filteredGrupos = q
     ? grupos.filter(
         g =>
@@ -102,6 +130,142 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
       )
     : cuatrimestres;
 
+  const getAulasCountByTipo = (tipoNombre: string) =>
+    aulas.filter(a => a.tipo.trim().toLowerCase() === tipoNombre.trim().toLowerCase()).length;
+
+  const resetTipoForm = () => {
+    setEditingTipoId(null);
+    setTipoFormNombre('');
+    setTipoFormDescripcion('');
+    setTipoFormEstado('activo');
+    setTipoFormError(null);
+  };
+
+  const handleOpenTiposModal = (fromAulaModal = false) => {
+    resetTipoForm();
+    setDeleteTipoTarget(null);
+    if (fromAulaModal) {
+      setIsModalOpen(false);
+      setReturnToAulaModal(true);
+    } else {
+      setReturnToAulaModal(false);
+    }
+    setIsTiposModalOpen(true);
+  };
+
+  const handleCloseTiposModal = () => {
+    setIsTiposModalOpen(false);
+    setDeleteTipoTarget(null);
+    resetTipoForm();
+    if (returnToAulaModal) {
+      setReturnToAulaModal(false);
+      const refreshedActive = SIAADataService.getTiposEspacio().filter(t => t.estado === 'activo');
+      if (
+        !refreshedActive.some(t => t.nombre.toLowerCase() === tipoEspacio.trim().toLowerCase()) &&
+        refreshedActive.length > 0
+      ) {
+        setTipoEspacio(refreshedActive[0].nombre);
+      }
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleSaveTipoEspacio = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = tipoFormNombre.trim();
+    if (!cleanName) {
+      setTipoFormError('Ingresa el nombre del tipo de espacio.');
+      return;
+    }
+
+    const duplicate = tiposEspacio.find(
+      t => t.nombre.trim().toLowerCase() === cleanName.toLowerCase() && t.id !== editingTipoId
+    );
+    if (duplicate) {
+      setTipoFormError(`Ya existe un tipo de espacio llamado "${duplicate.nombre}".`);
+      return;
+    }
+
+    if (editingTipoId) {
+      const previous = tiposEspacio.find(t => t.id === editingTipoId);
+      SIAADataService.updateTipoEspacio(
+        editingTipoId,
+        {
+          nombre: cleanName,
+          descripcion: tipoFormDescripcion.trim(),
+          estado: tipoFormEstado
+        },
+        currentUser || undefined
+      );
+      if (previous && tipoEspacio.trim().toLowerCase() === previous.nombre.trim().toLowerCase()) {
+        setTipoEspacio(cleanName);
+      }
+    } else {
+      SIAADataService.addTipoEspacio(
+        {
+          nombre: cleanName,
+          descripcion: tipoFormDescripcion.trim(),
+          estado: tipoFormEstado
+        },
+        currentUser || undefined
+      );
+    }
+
+    resetTipoForm();
+    setRefreshTick(t => t + 1);
+  };
+
+  const handleToggleTipoStatus = (tipo: TipoEspacio) => {
+    const nextEstado: UserStatus = tipo.estado === 'activo' ? 'inactivo' : 'activo';
+    SIAADataService.updateTipoEspacio(tipo.id, { estado: nextEstado }, currentUser || undefined);
+    setRefreshTick(t => t + 1);
+  };
+
+  const handleRequestDeleteTipo = (tipo: TipoEspacio) => {
+    setTipoFormError(null);
+    if (tiposEspacio.length <= 1) {
+      setTipoFormError('Debe existir al menos un tipo de espacio configurado en el catálogo.');
+      return;
+    }
+    const affectedCount = getAulasCountByTipo(tipo.nombre);
+    const fallback = tiposEspacio.find(t => t.id !== tipo.id && t.estado === 'activo') || tiposEspacio.find(t => t.id !== tipo.id);
+    setDeleteTipoTarget({
+      tipo,
+      affectedCount,
+      replacementNombre: fallback?.nombre || ''
+    });
+  };
+
+  const handleConfirmDeleteTipo = () => {
+    if (!deleteTipoTarget) return;
+    SIAADataService.deleteTipoEspacio(
+      deleteTipoTarget.tipo.id,
+      currentUser || undefined,
+      deleteTipoTarget.affectedCount > 0 ? deleteTipoTarget.replacementNombre : undefined
+    );
+    if (aulaTipoFilter.toLowerCase() === deleteTipoTarget.tipo.nombre.toLowerCase()) {
+      setAulaTipoFilter('todos');
+    }
+    if (editingTipoId === deleteTipoTarget.tipo.id) {
+      resetTipoForm();
+    }
+    setDeleteTipoTarget(null);
+    setRefreshTick(t => t + 1);
+  };
+
+  const handleCreateInlineTipo = () => {
+    const clean = inlineNewTipoNombre.trim();
+    if (!clean) return;
+    const created = SIAADataService.addTipoEspacio(
+      { nombre: clean, estado: 'activo' },
+      currentUser || undefined
+    );
+    setTipoEspacio(created.nombre);
+    setInlineNewTipoNombre('');
+    setShowInlineNewTipo(false);
+    setRefreshTick(t => t + 1);
+  };
+
   const handleOpenCreate = () => {
     setEditingId(null);
     setNombre('');
@@ -115,7 +279,9 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
     setAnioRegistro(new Date().getFullYear());
     setEdificio('Edificio A');
     setCapacidad(30);
-    setTipoEspacio('Aula Teórica');
+    setTipoEspacio(activeTiposEspacio[0]?.nombre || tiposEspacio[0]?.nombre || 'Aula Teórica');
+    setShowInlineNewTipo(false);
+    setInlineNewTipoNombre('');
     setIsModalOpen(true);
   };
 
@@ -265,11 +431,25 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {activeCatalog === 'aulas' && (
+            <button
+              type="button"
+              onClick={() => handleOpenTiposModal(false)}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs transition-colors whitespace-nowrap shrink-0"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+              <span>Tipos de Espacios</span>
+              <span className="tabular-nums text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                ({tiposEspacio.length})
+              </span>
+            </button>
+          )}
+
           {onOpenBulkImport && (
             <button
               type="button"
               onClick={() => onOpenBulkImport(activeCatalog)}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs transition-colors whitespace-nowrap shrink-0"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               Plantilla / Carga Masiva
@@ -279,7 +459,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white font-semibold text-xs shadow-xs transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white font-semibold text-xs shadow-xs transition-colors whitespace-nowrap shrink-0"
           >
             <PlusCircle className="w-4 h-4 text-amber-400" />
             Nuevo Elemento
@@ -314,15 +494,33 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
           })}
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filtrar catálogo..."
-            className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {activeCatalog === 'aulas' && (
+            <select
+              value={aulaTipoFilter}
+              onChange={(e) => setAulaTipoFilter(e.target.value)}
+              aria-label="Filtrar por tipo de espacio"
+              className="px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+            >
+              <option value="todos">Todos los tipos ({aulas.length})</option>
+              {tiposEspacio.map(t => (
+                <option key={t.id} value={t.nombre}>
+                  {t.nombre} ({getAulasCountByTipo(t.nombre)})
+                </option>
+              ))}
+            </select>
+          )}
+
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filtrar catálogo..."
+              className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
+            />
+          </div>
         </div>
       </div>
 
@@ -454,46 +652,56 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredAulas.map(a => (
-                  <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{a.nombre}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{a.edificio}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{a.tipo}</td>
-                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{a.capacidad} estudiantes</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
-                        {a.estado}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(a.id);
-                            setNombre(a.nombre);
-                            setEdificio(a.edificio);
-                            setCapacidad(a.capacidad);
-                            setTipoEspacio(a.tipo);
-                            setIsModalOpen(true);
-                          }}
-                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-                          title="Modificar aula"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteItem({ id: a.id, label: `${a.nombre} (${a.edificio})` })}
-                          className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
-                          title="Eliminar aula"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                {filteredAulas.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                      No hay aulas o espacios registrados que coincidan con el filtro actual.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredAulas.map(a => (
+                    <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                      <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{a.nombre}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{a.edificio}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{a.tipo}</td>
+                      <td className="px-4 py-3 font-medium tabular-nums text-slate-800 dark:text-slate-200">{a.capacidad} estudiantes</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
+                          {a.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(a.id);
+                              setNombre(a.nombre);
+                              setEdificio(a.edificio);
+                              setCapacidad(a.capacidad);
+                              setTipoEspacio(a.tipo);
+                              setShowInlineNewTipo(false);
+                              setInlineNewTipoNombre('');
+                              setIsModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                            title="Modificar aula"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteItem({ id: a.id, label: `${a.nombre} (${a.edificio})` })}
+                            className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                            title="Eliminar aula"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           )}
@@ -762,36 +970,99 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
           )}
 
           {activeCatalog === 'aulas' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Edificio</label>
-                <input
-                  type="text"
-                  value={edificio}
-                  onChange={(e) => setEdificio(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
-                />
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Edificio</label>
+                  <input
+                    type="text"
+                    value={edificio}
+                    onChange={(e) => setEdificio(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Capacidad</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={capacidad}
+                    onChange={(e) => setCapacidad(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 tabular-nums"
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Tipo de Espacio</label>
-                <input
-                  type="text"
-                  value={tipoEspacio}
-                  onChange={(e) => setTipoEspacio(e.target.value)}
-                  placeholder="Ej: Aula Teórica"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Capacidad</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={capacidad}
-                  onChange={(e) => setCapacidad(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
-                />
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Tipo de Espacio *</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowInlineNewTipo(prev => !prev)}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 hover:underline whitespace-nowrap shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {showInlineNewTipo ? 'Cerrar' : 'Nuevo tipo'}
+                    </button>
+                    <span className="text-slate-300 dark:text-slate-700">|</span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenTiposModal(true)}
+                      className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline whitespace-nowrap shrink-0"
+                    >
+                      Administrar tipos
+                    </button>
+                  </div>
+                </div>
+
+                {(() => {
+                  const selectableTipos = [...activeTiposEspacio];
+                  if (
+                    tipoEspacio &&
+                    !selectableTipos.some(t => t.nombre.toLowerCase() === tipoEspacio.trim().toLowerCase())
+                  ) {
+                    selectableTipos.push({
+                      id: 'legacy-current',
+                      nombre: tipoEspacio,
+                      estado: 'activo'
+                    });
+                  }
+                  return (
+                    <select
+                      value={tipoEspacio}
+                      onChange={(e) => setTipoEspacio(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium"
+                    >
+                      {selectableTipos.map(t => (
+                        <option key={t.id} value={t.nombre}>
+                          {t.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
+
+                {showInlineNewTipo && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={inlineNewTipoNombre}
+                      onChange={(e) => setInlineNewTipoNombre(e.target.value)}
+                      placeholder="Ej: Sala de Simulación, Auditorio..."
+                      className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateInlineTipo}
+                      disabled={!inlineNewTipoNombre.trim()}
+                      className="px-3 py-1.5 rounded-md bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-xs whitespace-nowrap shrink-0 transition-colors"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -813,6 +1084,262 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal for managing configurable Space Types */}
+      <Modal
+        isOpen={isTiposModalOpen}
+        onClose={handleCloseTiposModal}
+        title="Gestión de Tipos de Espacios"
+        subtitle="Crea, modifica, activa o elimina las categorías de espacios según las necesidades de la institución"
+        maxWidth="2xl"
+      >
+        <div className="space-y-5 text-xs">
+          {/* Create / Edit Form */}
+          <form
+            onSubmit={handleSaveTipoEspacio}
+            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100">
+                {editingTipoId ? 'Modificar Tipo de Espacio' : 'Agregar Nuevo Tipo de Espacio'}
+              </h3>
+              {editingTipoId && (
+                <button
+                  type="button"
+                  onClick={resetTipoForm}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+
+            {tipoFormError && (
+              <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{tipoFormError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <div className="sm:col-span-5">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Nombre del Tipo *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={tipoFormNombre}
+                  onChange={(e) => {
+                    setTipoFormNombre(e.target.value);
+                    if (tipoFormError) setTipoFormError(null);
+                  }}
+                  placeholder="Ej: Sala de Tutorías, Auditorio"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 font-medium"
+                />
+              </div>
+
+              <div className="sm:col-span-5">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Descripción breve
+                </label>
+                <input
+                  type="text"
+                  value={tipoFormDescripcion}
+                  onChange={(e) => setTipoFormDescripcion(e.target.value)}
+                  placeholder="Uso o equipamiento del espacio"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Estado
+                </label>
+                <select
+                  value={tipoFormEstado}
+                  onChange={(e) => setTipoFormEstado(e.target.value as UserStatus)}
+                  className="w-full px-2.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium"
+                >
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {editingTipoId
+                  ? 'Si cambias el nombre, las aulas asociadas se actualizarán automáticamente.'
+                  : 'Los tipos activos estarán disponibles al registrar o editar aulas y espacios.'}
+              </p>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-900 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white font-bold transition-colors whitespace-nowrap shrink-0"
+              >
+                <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                {editingTipoId ? 'Actualizar Tipo' : 'Agregar Tipo'}
+              </button>
+            </div>
+          </form>
+
+          {/* Safe Delete Reassignment Box when deleting a space type */}
+          {deleteTipoTarget && (
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-amber-900 dark:text-amber-200">
+                    Eliminar tipo "{deleteTipoTarget.tipo.nombre}"
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300 mt-0.5">
+                    {deleteTipoTarget.affectedCount > 0
+                      ? `Hay ${deleteTipoTarget.affectedCount} espacio(s) asignado(s) a este tipo. Selecciona el tipo al que deseas reasignarlos antes de eliminar:`
+                      : 'Este tipo no tiene aulas asignadas actualmente. ¿Deseas eliminarlo del catálogo?'}
+                  </p>
+                </div>
+              </div>
+
+              {deleteTipoTarget.affectedCount > 0 && (
+                <div>
+                  <label className="block font-semibold text-amber-900 dark:text-amber-200 mb-1">
+                    Reasignar espacios afectados a:
+                  </label>
+                  <select
+                    value={deleteTipoTarget.replacementNombre}
+                    onChange={(e) =>
+                      setDeleteTipoTarget(prev =>
+                        prev ? { ...prev, replacementNombre: e.target.value } : null
+                      )
+                    }
+                    className="w-full sm:w-80 px-3 py-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium"
+                  >
+                    {tiposEspacio
+                      .filter(t => t.id !== deleteTipoTarget.tipo.id)
+                      .map(t => (
+                        <option key={t.id} value={t.nombre}>
+                          {t.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTipoTarget(null)}
+                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteTipo}
+                  className="px-3.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-bold"
+                >
+                  Confirmar eliminación
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Configured Space Types Table */}
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="px-4 py-2.5">Tipo de Espacio</th>
+                    <th className="px-4 py-2.5 text-right">Aulas</th>
+                    <th className="px-4 py-2.5">Estado</th>
+                    <th className="px-4 py-2.5 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {tiposEspacio.map(tipo => {
+                    const count = getAulasCountByTipo(tipo.nombre);
+                    const isEditingThis = editingTipoId === tipo.id;
+                    return (
+                      <tr
+                        key={tipo.id}
+                        className={`transition-colors ${
+                          isEditingThis
+                            ? 'bg-emerald-50/60 dark:bg-emerald-950/30'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <td className="px-4 py-2.5">
+                          <div className="font-semibold text-slate-800 dark:text-slate-100">{tipo.nombre}</div>
+                          {tipo.descripcion && (
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {tipo.descripcion}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums font-semibold text-slate-700 dark:text-slate-300">
+                          {count}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTipoStatus(tipo)}
+                            title="Cambiar estado activo/inactivo"
+                            className={`text-[11px] font-bold uppercase tracking-wide transition-colors ${
+                              tipo.estado === 'activo'
+                                ? 'text-emerald-700 dark:text-emerald-400 hover:underline'
+                                : 'text-slate-400 dark:text-slate-500 hover:underline'
+                            }`}
+                          >
+                            {tipo.estado}
+                          </button>
+                        </td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTipoId(tipo.id);
+                                setTipoFormNombre(tipo.nombre);
+                                setTipoFormDescripcion(tipo.descripcion || '');
+                                setTipoFormEstado(tipo.estado);
+                                setTipoFormError(null);
+                                setDeleteTipoTarget(null);
+                              }}
+                              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                              title="Modificar tipo de espacio"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRequestDeleteTipo(tipo)}
+                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                              title="Eliminar tipo de espacio"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={handleCloseTiposModal}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors"
+            >
+              {returnToAulaModal ? 'Volver al formulario' : 'Cerrar'}
+            </button>
+          </div>
+        </div>
       </Modal>
 
       <ConfirmDialog

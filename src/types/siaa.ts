@@ -86,6 +86,14 @@ export interface Aula {
   estado: UserStatus;
 }
 
+export interface TipoEspacio {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  estado: UserStatus;
+  fechaCreacion?: string;
+}
+
 export type DiaSemana = 'Lunes' | 'Martes' | 'Miércoles' | 'Jueves' | 'Viernes' | 'Sábado' | 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'sabado';
 
 export interface DisponibilidadRecurrente {
