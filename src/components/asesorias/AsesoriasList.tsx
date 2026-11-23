@@ -12,7 +12,11 @@ import {
   Calendar,
   Edit2,
   Trash2,
-  X
+  X,
+  SlidersHorizontal,
+  BookOpen,
+  UserCheck,
+  RotateCcw
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
@@ -22,6 +26,13 @@ import {
   getUserCarreraIds,
   userHasCarrera
 } from '../../utils/roles';
+
+const formatLocalDate = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 interface AsesoriasListProps {
   onSelectAdvisory: (id: string) => void;
@@ -49,20 +60,26 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   refreshKey = 0
 }) => {
   const { currentUser, currentRole } = useAuth();
+  const defaultEstado = isHistoryView ? 'realizada' : 'all';
+
   const [search, setSearch] = useState('');
-  const [filterEstado, setFilterEstado] = useState<string>(
-    initialEstado || (isHistoryView ? 'realizada' : 'all')
-  );
-  const [filterFecha, setFilterFecha] = useState<string>(initialFecha || '');
+  const [filterEstado, setFilterEstado] = useState<string>(initialEstado || defaultEstado);
+  const [filterFechaDesde, setFilterFechaDesde] = useState<string>(initialFecha || '');
+  const [filterFechaHasta, setFilterFechaHasta] = useState<string>(initialFecha || '');
   const [filterCarrera, setFilterCarrera] = useState<string>(initialCarrera || 'all');
   const [filterDocente, setFilterDocente] = useState<string>('all');
+  const [filterMateria, setFilterMateria] = useState<string>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(true);
   const [refreshTick, setRefreshTick] = useState(0);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<Asesoria | null>(null);
 
   useEffect(() => {
     setFilterEstado(initialEstado || (isHistoryView ? 'realizada' : 'all'));
-    setFilterFecha(initialFecha || '');
+    setFilterFechaDesde(initialFecha || '');
+    setFilterFechaHasta(initialFecha || '');
     setFilterCarrera(initialCarrera || 'all');
+    setFilterDocente('all');
+    setFilterMateria('all');
   }, [initialEstado, initialFecha, initialCarrera, presetKey, isHistoryView]);
 
   void refreshKey;
@@ -70,6 +87,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
 
   const asesorias = SIAADataService.getAsesorias();
   const carreras = SIAADataService.getCarreras();
+  const allMaterias = SIAADataService.getMaterias();
   const teachers = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
 
   // Role filtering
@@ -79,21 +97,31 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
       ? carreras.filter(c => userCarreras.includes(c.id))
       : carreras;
 
-  let displayList = asesorias;
+  const availableMaterias = allMaterias.filter(m => {
+    if (filterCarrera !== 'all') return m.carreraId === filterCarrera;
+    if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
+      return userCarreras.includes(m.carreraId);
+    }
+    return true;
+  });
+
+  let scopedList = asesorias;
   if (currentRole === 'alumno') {
-    displayList = displayList.filter(a => a.alumnoId === currentUser?.uid);
+    scopedList = scopedList.filter(a => a.alumnoId === currentUser?.uid);
   } else if (isTeachingRole(currentRole)) {
-    displayList = displayList.filter(a => a.docenteAsignadoId === currentUser?.uid);
+    scopedList = scopedList.filter(a => a.docenteAsignadoId === currentUser?.uid);
   } else if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
-    displayList = displayList.filter(a => userHasCarrera(currentUser, a.carreraId));
+    scopedList = scopedList.filter(a => userHasCarrera(currentUser, a.carreraId));
   }
 
   // History view filtering: only completed/closed/cancelled
   if (isHistoryView) {
-    displayList = displayList.filter(
+    scopedList = scopedList.filter(
       a => a.estado === 'realizada' || a.estado === 'cerrada' || a.estado === 'cancelada'
     );
   }
+
+  let displayList = scopedList;
 
   // Search filter
   if (search.trim()) {
@@ -104,7 +132,10 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
         a.alumnoNombre.toLowerCase().includes(q) ||
         (a.docenteAsignadoNombre && a.docenteAsignadoNombre.toLowerCase().includes(q)) ||
         a.materiaNombre.toLowerCase().includes(q) ||
-        a.matricula.toLowerCase().includes(q)
+        a.materiaCodigo.toLowerCase().includes(q) ||
+        a.matricula.toLowerCase().includes(q) ||
+        (a.temasDificultad && a.temasDificultad.toLowerCase().includes(q)) ||
+        (a.aulaNombre && a.aulaNombre.toLowerCase().includes(q))
     );
   }
 
@@ -128,9 +159,15 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
     displayList = displayList.filter(a => a.estado === filterEstado);
   }
 
-  // Date filter
-  if (filterFecha) {
-    displayList = displayList.filter(a => a.fechaProgramada === filterFecha);
+  // Date range filter (uses fechaProgramada or falls back to fechaSolicitud if no programmed date when filtering ranges)
+  if (filterFechaDesde || filterFechaHasta) {
+    displayList = displayList.filter(a => {
+      const targetDate = a.fechaProgramada;
+      if (!targetDate) return false;
+      if (filterFechaDesde && targetDate < filterFechaDesde) return false;
+      if (filterFechaHasta && targetDate > filterFechaHasta) return false;
+      return true;
+    });
   }
 
   // Career filter
@@ -138,10 +175,74 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
     displayList = displayList.filter(a => a.carreraId === filterCarrera);
   }
 
+  // Subject filter
+  if (filterMateria !== 'all') {
+    displayList = displayList.filter(a => a.materiaId === filterMateria);
+  }
+
   // Teacher filter
-  if (filterDocente !== 'all') {
+  if (filterDocente === 'unassigned') {
+    displayList = displayList.filter(a => !a.docenteAsignadoId);
+  } else if (filterDocente !== 'all') {
     displayList = displayList.filter(a => a.docenteAsignadoId === filterDocente);
   }
+
+  const todayStr = formatLocalDate(new Date());
+  const applyDatePreset = (preset: 'today' | 'week' | 'month' | 'clear') => {
+    const now = new Date();
+    if (preset === 'clear') {
+      setFilterFechaDesde('');
+      setFilterFechaHasta('');
+      return;
+    }
+    if (preset === 'today') {
+      const d = formatLocalDate(now);
+      setFilterFechaDesde(d);
+      setFilterFechaHasta(d);
+      return;
+    }
+    if (preset === 'week') {
+      const day = now.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + diffToMonday);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      setFilterFechaDesde(formatLocalDate(monday));
+      setFilterFechaHasta(formatLocalDate(sunday));
+      return;
+    }
+    if (preset === 'month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setFilterFechaDesde(formatLocalDate(firstDay));
+      setFilterFechaHasta(formatLocalDate(lastDay));
+    }
+  };
+
+  const resetAllFilters = () => {
+    setSearch('');
+    setFilterEstado(defaultEstado);
+    setFilterFechaDesde('');
+    setFilterFechaHasta('');
+    setFilterCarrera('all');
+    setFilterDocente('all');
+    setFilterMateria('all');
+  };
+
+  const advancedActiveCount = [
+    filterDocente !== 'all',
+    filterMateria !== 'all',
+    filterCarrera !== 'all',
+    Boolean(filterFechaDesde || filterFechaHasta)
+  ].filter(Boolean).length;
+
+  const hasAnyActiveFilter =
+    Boolean(search.trim()) ||
+    filterEstado !== defaultEstado ||
+    advancedActiveCount > 0;
+
+  const isExactTodayPreset = filterFechaDesde === todayStr && filterFechaHasta === todayStr;
 
   const handleExportExcel = () => {
     SIAADataService.exportToExcel(displayList, 'SIAA_Reporte_Asesorias');
@@ -189,11 +290,11 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors whitespace-nowrap shrink-0"
           >
             <FileSpreadsheet className="w-4 h-4 text-amber-400" />
             Exportar a Excel (.xlsx)
@@ -201,25 +302,41 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
         </div>
       </div>
 
-      {/* Filter toolbar */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Advanced Search & Filter Bar */}
+      <section
+        aria-label="Barra de búsqueda y filtros avanzados"
+        className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4"
+      >
+        {/* Top Search & Primary Controls Row */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Buscar por folio, alumno, docente o materia..."
+              aria-label="Buscar asesorías"
+              placeholder="Buscar por folio, alumno, matrícula, docente, materia o tema..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-700"
+              className="w-full pl-10 pr-9 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-700"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Limpiar búsqueda"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <select
+              aria-label="Filtrar por estado"
               value={filterEstado}
               onChange={(e) => setFilterEstado(e.target.value)}
-              className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+              className="text-xs px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
             >
               <option value="all">Todos los Estados</option>
               <option value="activas">Aprobadas / Programadas</option>
@@ -231,73 +348,222 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               <option value="cancelada">Canceladas</option>
             </select>
 
-            <input
-              type="date"
-              value={filterFecha}
-              onChange={(e) => setFilterFecha(e.target.value)}
-              title="Filtrar por fecha programada"
-              className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
-            />
-
-            <select
-              value={filterCarrera}
-              onChange={(e) => setFilterCarrera(e.target.value)}
-              className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+            <button
+              type="button"
+              onClick={() => setShowAdvancedFilters(prev => !prev)}
+              aria-expanded={showAdvancedFilters}
+              className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
+                showAdvancedFilters || advancedActiveCount > 0
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-300'
+                  : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
             >
-              <option value="all">Todas las Carreras</option>
-              {availableCarreras.map(c => (
-                <option key={c.id} value={c.id}>{c.codigo}</option>
-              ))}
-            </select>
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Filtros avanzados</span>
+              {advancedActiveCount > 0 && (
+                <span className="font-mono tabular-nums text-[11px] font-bold">
+                  ({advancedActiveCount})
+                </span>
+              )}
+            </button>
 
-            {!isTeacher && (
-              <select
-                value={filterDocente}
-                onChange={(e) => setFilterDocente(e.target.value)}
-                className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
-              >
-                <option value="all">Todos los Docentes</option>
-                {teachers.map(t => (
-                  <option key={t.uid} value={t.uid}>{t.nombre} {t.apellidoPaterno}</option>
-                ))}
-              </select>
-            )}
-
-            {(filterEstado !== 'all' || filterFecha || filterCarrera !== 'all' || filterDocente !== 'all' || search.trim()) && (
+            {hasAnyActiveFilter && (
               <button
                 type="button"
-                onClick={() => {
-                  setFilterEstado(isHistoryView ? 'realizada' : 'all');
-                  setFilterFecha('');
-                  setFilterCarrera('all');
-                  setFilterDocente('all');
-                  setSearch('');
-                }}
-                className="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-                title="Limpiar filtros"
+                onClick={resetAllFilters}
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors whitespace-nowrap shrink-0"
+                title="Restablecer todos los filtros"
               >
-                <X className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 Limpiar
               </button>
             )}
           </div>
         </div>
 
-        {filterFecha && (
-          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-300">
-            <span>
-              Mostrando asesorías programadas para la fecha: <strong className="font-mono">{filterFecha}</strong>
+        {/* Collapsible Advanced Filter Controls (Docente, Materia, Fecha, Carrera) */}
+        {showAdvancedFilters && (
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+            {/* Docente Filter */}
+            {!isTeacher && (
+              <div className="lg:col-span-3">
+                <label
+                  htmlFor="filter-docente"
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                  Docente Asesor
+                </label>
+                <select
+                  id="filter-docente"
+                  value={filterDocente}
+                  onChange={(e) => setFilterDocente(e.target.value)}
+                  className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                >
+                  <option value="all">Todos los Docentes</option>
+                  <option value="unassigned">Sin docente asignado</option>
+                  {teachers.map(t => (
+                    <option key={t.uid} value={t.uid}>
+                      {t.nombre} {t.apellidoPaterno} {t.apellidoMaterno}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Materia Filter */}
+            <div className={isTeacher ? 'lg:col-span-4' : 'lg:col-span-3'}>
+              <label
+                htmlFor="filter-materia"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                Materia
+              </label>
+              <select
+                id="filter-materia"
+                value={filterMateria}
+                onChange={(e) => setFilterMateria(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="all">Todas las Materias</option>
+                {availableMaterias.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.codigo} · {m.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Carrera Filter */}
+            <div className="lg:col-span-2">
+              <label
+                htmlFor="filter-carrera"
+                className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                Carrera
+              </label>
+              <select
+                id="filter-carrera"
+                value={filterCarrera}
+                onChange={(e) => {
+                  const nextCarrera = e.target.value;
+                  setFilterCarrera(nextCarrera);
+                  if (nextCarrera !== 'all' && filterMateria !== 'all') {
+                    const currentMat = allMaterias.find(m => m.id === filterMateria);
+                    if (currentMat && currentMat.carreraId !== nextCarrera) {
+                      setFilterMateria('all');
+                    }
+                  }
+                }}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="all">Todas las Carreras</option>
+                {availableCarreras.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.codigo}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Range Filters */}
+            <div className="lg:col-span-2">
+              <label
+                htmlFor="filter-fecha-desde"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                Fecha desde
+              </label>
+              <input
+                id="filter-fecha-desde"
+                type="date"
+                value={filterFechaDesde}
+                onChange={(e) => setFilterFechaDesde(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+
+            <div className={isTeacher ? 'lg:col-span-4' : 'lg:col-span-2'}>
+              <label
+                htmlFor="filter-fecha-hasta"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                Fecha hasta
+              </label>
+              <input
+                id="filter-fecha-hasta"
+                type="date"
+                value={filterFechaHasta}
+                onChange={(e) => setFilterFechaHasta(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Quick Date Presets & Live Result Counter */}
+        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mr-1">
+              Rango rápido:
             </span>
             <button
               type="button"
-              onClick={() => setFilterFecha('')}
-              className="font-bold hover:underline"
+              onClick={() => applyDatePreset('today')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                isExactTodayPreset
+                  ? 'bg-emerald-800 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
             >
-              Ver todas las fechas
+              Hoy
             </button>
+            <button
+              type="button"
+              onClick={() => applyDatePreset('week')}
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0"
+            >
+              Esta semana
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDatePreset('month')}
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0"
+            >
+              Este mes
+            </button>
+            {(filterFechaDesde || filterFechaHasta) && (
+              <button
+                type="button"
+                onClick={() => applyDatePreset('clear')}
+                className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline whitespace-nowrap shrink-0"
+              >
+                Quitar fechas
+              </button>
+            )}
           </div>
-        )}
-      </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <span className="tabular-nums">
+              Mostrando <strong className="text-slate-800 dark:text-slate-100">{displayList.length}</strong> de{' '}
+              <strong className="text-slate-800 dark:text-slate-100">{scopedList.length}</strong> asesorías
+            </span>
+            {(filterFechaDesde || filterFechaHasta) && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="font-mono tabular-nums text-amber-800 dark:text-amber-300">
+                  {filterFechaDesde === filterFechaHasta
+                    ? `Fecha: ${filterFechaDesde}`
+                    : `${filterFechaDesde || 'Inicio'} → ${filterFechaHasta || 'Actual'}`}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Main Table */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
@@ -318,8 +584,18 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {displayList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
-                    No se encontraron asesorías registradas con los filtros seleccionados.
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
+                    <p>No se encontraron asesorías registradas con los filtros seleccionados.</p>
+                    {hasAnyActiveFilter && (
+                      <button
+                        type="button"
+                        onClick={resetAllFilters}
+                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Restablecer filtros
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
