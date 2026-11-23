@@ -18,8 +18,11 @@ import {
 import { NavView } from '../layout/Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { SIAADataService } from '../../services/siaaService';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
+import { WidgetNotificationBadge } from './WidgetNotificationBadge';
+import { LiveNotificationsBanner } from './LiveNotificationsBanner';
 import {
   ROLE_HIERARCHY,
   getRoleMeta,
@@ -61,6 +64,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const { currentUser, currentRole } = useAuth();
   const { isDark } = useTheme();
+  const {
+    syncTick,
+    unreadNotifications,
+    getUnreadForWidget,
+    markRead,
+    markIdsRead,
+    markAllRead
+  } = useRealtimeNotifications(currentUser?.uid);
+  void syncTick;
   const asesorias = SIAADataService.getAsesorias();
   const users = SIAADataService.getUsers();
   const materias = SIAADataService.getMaterias();
@@ -114,6 +126,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return dateA.localeCompare(dateB);
     })[0];
 
+    const notifsHoyAlumno = getUnreadForWidget({ advisoryIds: misAsesoriasHoy.map(a => a.id) });
+    const notifsPendientesAlumno = getUnreadForWidget({
+      tipos: ['autorizacion', 'cancelacion', 'solicitud'],
+      advisoryIds: pendientes.map(a => a.id)
+    });
+    const notifsProximasAlumno = getUnreadForWidget({
+      tipos: ['asignacion'],
+      advisoryIds: proximas.map(a => a.id)
+    });
+    const notifsRealizadasAlumno = getUnreadForWidget({
+      tipos: ['seguimiento'],
+      advisoryIds: realizadas.map(a => a.id)
+    });
+
     return (
       <div className="space-y-6 animate-fadeIn">
         {/* Welcome Hero Banner */}
@@ -149,19 +175,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
+        <LiveNotificationsBanner
+          unreadNotifications={unreadNotifications}
+          onSelectAdvisory={onSelectAdvisory}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+        />
+
         {/* Clickable Summary Widgets (Alumno) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
             type="button"
-            onClick={() => onNavigate('asesorias', { fecha: todayStr })}
-            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
+            onClick={() => {
+              markIdsRead(notifsHoyAlumno.map(n => n.id));
+              onNavigate('asesorias', { fecha: todayStr });
+            }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group relative"
           >
+            <div className="flex items-start justify-between gap-2 mb-1.5 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mis Asesorías Hoy</p>
+              <WidgetNotificationBadge items={notifsHoyAlumno} tone="amber" compact />
+            </div>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mis Asesorías Hoy</p>
-                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{misAsesoriasHoy.length}</p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{misAsesoriasHoy.length}</p>
+                {notifsHoyAlumno[0] && (
+                  <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 mt-0.5 line-clamp-1">
+                    {notifsHoyAlumno[0].titulo}
+                  </p>
+                )}
               </div>
-              <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400">
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400 shrink-0">
                 <Clock className="w-6 h-6" />
               </div>
             </div>
@@ -173,15 +217,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
-            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+            onClick={() => {
+              markIdsRead(notifsPendientesAlumno.map(n => n.id));
+              onNavigate('solicitudes', { estado: 'pendiente' });
+            }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group relative"
           >
+            <div className="flex items-start justify-between gap-2 mb-1.5 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Solicitudes Pendientes</p>
+              <WidgetNotificationBadge items={notifsPendientesAlumno} tone="amber" compact />
+            </div>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Solicitudes Pendientes</p>
-                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendientes.length}</p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{pendientes.length}</p>
+                {notifsPendientesAlumno[0] && (
+                  <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 mt-0.5 line-clamp-1">
+                    {notifsPendientesAlumno[0].titulo}
+                  </p>
+                )}
               </div>
-              <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400">
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600 dark:text-amber-400 shrink-0">
                 <AlertCircle className="w-6 h-6" />
               </div>
             </div>
@@ -193,15 +248,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('asesorias', { estado: 'confirmada' })}
-            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
+            onClick={() => {
+              markIdsRead(notifsProximasAlumno.map(n => n.id));
+              onNavigate('asesorias', { estado: 'confirmada' });
+            }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group relative"
           >
+            <div className="flex items-start justify-between gap-2 mb-1.5 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Próximas</p>
+              <WidgetNotificationBadge items={notifsProximasAlumno} tone="teal" compact />
+            </div>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Próximas</p>
-                <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{proximas.length}</p>
+                <p className="text-2xl font-bold text-teal-700 dark:text-teal-400">{proximas.length}</p>
+                {notifsProximasAlumno[0] && (
+                  <p className="text-[10px] font-medium text-teal-700 dark:text-teal-300 mt-0.5 line-clamp-1">
+                    {notifsProximasAlumno[0].titulo}
+                  </p>
+                )}
               </div>
-              <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-teal-700 dark:text-teal-400">
+              <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-teal-700 dark:text-teal-400 shrink-0">
                 <Calendar className="w-6 h-6" />
               </div>
             </div>
@@ -213,15 +279,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('historial')}
-            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
+            onClick={() => {
+              markIdsRead(notifsRealizadasAlumno.map(n => n.id));
+              onNavigate('historial');
+            }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group relative"
           >
+            <div className="flex items-start justify-between gap-2 mb-1.5 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Realizadas</p>
+              <WidgetNotificationBadge items={notifsRealizadasAlumno} tone="emerald" compact />
+            </div>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Asesorías Realizadas</p>
-                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas.length}</p>
+                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{realizadas.length}</p>
+                {notifsRealizadasAlumno[0] && (
+                  <p className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 mt-0.5 line-clamp-1">
+                    {notifsRealizadasAlumno[0].titulo}
+                  </p>
+                )}
               </div>
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-800 dark:text-emerald-400">
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-800 dark:text-emerald-400 shrink-0">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
             </div>
@@ -388,6 +465,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const dispEspecificas = SIAADataService.getDisponibilidadesEspecificas(currentUser?.uid);
     const totalHorarios = dispRecurrentes.length + dispEspecificas.length;
 
+    const notifsHoyDocente = getUnreadForWidget({ advisoryIds: hoy.map(a => a.id) });
+    const notifsSegDocente = getUnreadForWidget({
+      tipos: ['asignacion'],
+      advisoryIds: pendientesSeguimiento.map(a => a.id),
+      requireBoth: true
+    });
+    const notifsProximasDocente = getUnreadForWidget({
+      tipos: ['asignacion', 'cancelacion'],
+      advisoryIds: proximas.map(a => a.id)
+    });
+    const notifsRealizadasDocente = getUnreadForWidget({
+      tipos: ['seguimiento'],
+      advisoryIds: realizadas.map(a => a.id)
+    });
+
     return (
       <div className="space-y-6 animate-fadeIn">
         {/* Header Hero */}
@@ -454,17 +546,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
+        <LiveNotificationsBanner
+          unreadNotifications={unreadNotifications}
+          onSelectAdvisory={onSelectAdvisory}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+        />
+
         {/* Clickable Summary Widgets (Docentes) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <button
             type="button"
-            onClick={() => onNavigate('asesorias', { fecha: todayStr })}
+            onClick={() => {
+              markIdsRead(notifsHoyDocente.map(n => n.id));
+              onNavigate('asesorias', { fecha: todayStr });
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Mis Asesorías Hoy</p>
+            <div className="flex items-start justify-between gap-2 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Mis Asesorías Hoy</p>
+              <WidgetNotificationBadge items={notifsHoyDocente} tone="amber" compact />
+            </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-amber-700 dark:text-amber-400">{hoy.length}</span>
-              <span className="p-2.5 bg-amber-50 dark:bg-amber-950/60 rounded-lg text-amber-700 dark:text-amber-400"><Clock className="w-5 h-5" /></span>
+              <div>
+                <span className="text-2xl font-bold text-amber-700 dark:text-amber-400">{hoy.length}</span>
+                {notifsHoyDocente[0] && (
+                  <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 line-clamp-1">{notifsHoyDocente[0].titulo}</p>
+                )}
+              </div>
+              <span className="p-2.5 bg-amber-50 dark:bg-amber-950/60 rounded-lg text-amber-700 dark:text-amber-400 shrink-0"><Clock className="w-5 h-5" /></span>
             </div>
             <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-amber-700 dark:text-amber-400">
               <span>Ir a sesiones de hoy</span>
@@ -474,13 +584,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('seguimiento', { estado: 'sin_seguimiento' })}
+            onClick={() => {
+              markIdsRead(notifsSegDocente.map(n => n.id));
+              onNavigate('seguimiento', { estado: 'sin_seguimiento' });
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pend. de Seguimiento</p>
+            <div className="flex items-start justify-between gap-2 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pend. de Seguimiento</p>
+              <WidgetNotificationBadge items={notifsSegDocente} tone="emerald" compact />
+            </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{pendientesSeguimiento.length}</span>
-              <span className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg text-emerald-800 dark:text-emerald-400"><ClipboardList className="w-5 h-5" /></span>
+              <div>
+                <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{pendientesSeguimiento.length}</span>
+                {notifsSegDocente[0] && (
+                  <p className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 line-clamp-1">{notifsSegDocente[0].titulo}</p>
+                )}
+              </div>
+              <span className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg text-emerald-800 dark:text-emerald-400 shrink-0"><ClipboardList className="w-5 h-5" /></span>
             </div>
             <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
               <span>Registrar seguimiento</span>
@@ -490,13 +611,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('asesorias', { estado: 'confirmada' })}
+            onClick={() => {
+              markIdsRead(notifsProximasDocente.map(n => n.id));
+              onNavigate('asesorias', { estado: 'confirmada' });
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Próximas Sesiones</p>
+            <div className="flex items-start justify-between gap-2 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Próximas Sesiones</p>
+              <WidgetNotificationBadge items={notifsProximasDocente} tone="teal" compact />
+            </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-teal-700 dark:text-teal-400">{proximas.length}</span>
-              <span className="p-2.5 bg-teal-50 dark:bg-teal-950/60 rounded-lg text-teal-700 dark:text-teal-400"><Calendar className="w-5 h-5" /></span>
+              <div>
+                <span className="text-2xl font-bold text-teal-700 dark:text-teal-400">{proximas.length}</span>
+                {notifsProximasDocente[0] && (
+                  <p className="text-[10px] font-medium text-teal-700 dark:text-teal-300 line-clamp-1">{notifsProximasDocente[0].titulo}</p>
+                )}
+              </div>
+              <span className="p-2.5 bg-teal-50 dark:bg-teal-950/60 rounded-lg text-teal-700 dark:text-teal-400 shrink-0"><Calendar className="w-5 h-5" /></span>
             </div>
             <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-teal-700 dark:text-teal-400">
               <span>Ver agenda próxima</span>
@@ -506,13 +638,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('historial')}
+            onClick={() => {
+              markIdsRead(notifsRealizadasDocente.map(n => n.id));
+              onNavigate('historial');
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Asesorías Realizadas</p>
+            <div className="flex items-start justify-between gap-2 min-h-[20px]">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Asesorías Realizadas</p>
+              <WidgetNotificationBadge items={notifsRealizadasDocente} tone="emerald" compact />
+            </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{realizadas.length}</span>
-              <span className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg text-emerald-800 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /></span>
+              <div>
+                <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-400">{realizadas.length}</span>
+                {notifsRealizadasDocente[0] && (
+                  <p className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 line-clamp-1">{notifsRealizadasDocente[0].titulo}</p>
+                )}
+              </div>
+              <span className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg text-emerald-800 dark:text-emerald-400 shrink-0"><CheckCircle2 className="w-5 h-5" /></span>
             </div>
             <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
               <span>Ir al historial</span>
@@ -709,6 +852,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const selectedCareerObj = carreras.find(c => c.id === selectedCarrera);
     const activeCareerParam = selectedCarrera !== 'all' ? selectedCarrera : undefined;
 
+    const notifsPendAsignarDir = getUnreadForWidget({
+      tipos: ['solicitud'],
+      advisoryIds: pendientesAsignar.map(a => a.id)
+    });
+    const notifsHoyDir = getUnreadForWidget({ advisoryIds: programadasHoy.map(a => a.id) });
+    const notifsPendDir = getUnreadForWidget({
+      tipos: ['solicitud'],
+      advisoryIds: pendientes.map(a => a.id)
+    });
+    const notifsAprobDir = getUnreadForWidget({
+      tipos: ['autorizacion', 'asignacion'],
+      advisoryIds: aprobadas.map(a => a.id),
+      requireBoth: true
+    });
+    const notifsRealizadasDir = getUnreadForWidget({
+      tipos: ['seguimiento'],
+      advisoryIds: realizadas.map(a => a.id),
+      requireBoth: true
+    });
+
     return (
       <div className="space-y-6 animate-fadeIn">
         {/* Header with Period & Career Filters */}
@@ -776,19 +939,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
+        <LiveNotificationsBanner
+          unreadNotifications={unreadNotifications}
+          onSelectAdvisory={onSelectAdvisory}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+        />
+
         {/* Actionable Summary Widgets (Dirección / Jefatura) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
             type="button"
-            onClick={() => onNavigate('solicitudes', { estado: 'sin_asignar' })}
+            onClick={() => {
+              markIdsRead(notifsPendAsignarDir.map(n => n.id));
+              onNavigate('solicitudes', { estado: 'sin_asignar' });
+            }}
             className="bg-amber-50/70 dark:bg-amber-950/30 p-5 rounded-xl border border-amber-200 dark:border-amber-800/80 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase">Asesorías Pendientes de Asignar</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase">Asesorías Pendientes de Asignar</p>
+                  <WidgetNotificationBadge items={notifsPendAsignarDir} tone="amber" />
+                </div>
                 <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">{pendientesAsignar.length}</p>
                 <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-1">
-                  Solicitudes sin docente o espacio asignado
+                  {notifsPendAsignarDir[0] ? notifsPendAsignarDir[0].titulo : 'Solicitudes sin docente o espacio asignado'}
                 </p>
               </div>
               <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
@@ -803,15 +979,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('asesorias', { fecha: todayStr, carreraId: activeCareerParam })}
+            onClick={() => {
+              markIdsRead(notifsHoyDir.map(n => n.id));
+              onNavigate('asesorias', { fecha: todayStr, carreraId: activeCareerParam });
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold text-teal-800 dark:text-teal-300 uppercase">Asesorías Programadas Hoy</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-bold text-teal-800 dark:text-teal-300 uppercase">Asesorías Programadas Hoy</p>
+                  <WidgetNotificationBadge items={notifsHoyDir} tone="teal" />
+                </div>
                 <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{programadasHoy.length}</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Agenda del día ({todayStr})
+                  {notifsHoyDir[0] ? notifsHoyDir[0].titulo : `Agenda del día (${todayStr})`}
                 </p>
               </div>
               <span className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 shrink-0">
@@ -831,7 +1013,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Agenda y Calendario Activo</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Agenda y Calendario Activo</p>
+                  <WidgetNotificationBadge items={notifsAprobDir} tone="emerald" />
+                </div>
                 <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{aprobadas.length}</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                   Sesiones aprobadas y confirmadas
@@ -878,10 +1063,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
+            onClick={() => {
+              markIdsRead(notifsPendDir.map(n => n.id));
+              onNavigate('solicitudes', { estado: 'pendiente' });
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pendientes Revisión</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pendientes Revisión</p>
+              <WidgetNotificationBadge items={notifsPendDir} tone="amber" compact />
+            </div>
             <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendientes.length}</p>
             <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 font-medium flex items-center justify-between">
               <span>Por autorizar</span>
@@ -891,10 +1082,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('asesorias', { estado: 'activas', carreraId: activeCareerParam })}
+            onClick={() => {
+              markIdsRead(notifsAprobDir.map(n => n.id));
+              onNavigate('asesorias', { estado: 'activas', carreraId: activeCareerParam });
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Aprobadas / Agendadas</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Aprobadas / Agendadas</p>
+              <WidgetNotificationBadge items={notifsAprobDir} tone="teal" compact />
+            </div>
             <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{aprobadas.length}</p>
             <p className="text-[11px] text-teal-700 dark:text-teal-400 mt-1 font-medium flex items-center justify-between">
               <span>En proceso de atención</span>
@@ -904,10 +1101,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigate('historial', { carreraId: activeCareerParam })}
+            onClick={() => {
+              markIdsRead(notifsRealizadasDir.map(n => n.id));
+              onNavigate('historial', { carreraId: activeCareerParam });
+            }}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
           >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Realizadas y Cerradas</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Realizadas y Cerradas</p>
+              <WidgetNotificationBadge items={notifsRealizadasDir} tone="emerald" compact />
+            </div>
             <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{realizadas.length}</p>
             <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-medium flex items-center justify-between">
               <span>Ver historial</span>
@@ -1102,6 +1305,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   });
   const dataDocentes = Object.entries(docenteCounts).map(([name, total]) => ({ name, total }));
 
+  const notifsPendAsignarAdmin = getUnreadForWidget({
+    tipos: ['solicitud'],
+    advisoryIds: pendientesAsignarAdmin.map(a => a.id)
+  });
+  const notifsHoyAdmin = getUnreadForWidget({ advisoryIds: programadasHoyAdmin.map(a => a.id) });
+  const notifsPorAutorizarAdmin = getUnreadForWidget({ tipos: ['solicitud'] });
+  const notifsPendSegAdmin = getUnreadForWidget({
+    advisoryIds: pendientesSeguimientoAdmin.map(a => a.id)
+  });
+  const notifsAprobAdmin = getUnreadForWidget({ tipos: ['autorizacion', 'asignacion'] });
+  const notifsRealizadasAdmin = getUnreadForWidget({ tipos: ['seguimiento'] });
+  const notifsCanceladasAdmin = getUnreadForWidget({ tipos: ['cancelacion'] });
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Admin Title & Quick Navigation Shortcuts */}
@@ -1155,18 +1371,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      <LiveNotificationsBanner
+        unreadNotifications={unreadNotifications}
+        onSelectAdvisory={onSelectAdvisory}
+        onMarkRead={markRead}
+        onMarkAllRead={markAllRead}
+      />
+
       {/* Actionable Operational Summary Widgets (Admin) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <button
           type="button"
-          onClick={() => onNavigate('solicitudes', { estado: 'sin_asignar' })}
+          onClick={() => {
+            markIdsRead(notifsPendAsignarAdmin.map(n => n.id));
+            onNavigate('solicitudes', { estado: 'sin_asignar' });
+          }}
           className="bg-amber-50/70 dark:bg-amber-950/30 p-5 rounded-xl border border-amber-200 dark:border-amber-800/80 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase">Asesorías Pendientes de Asignar</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase">Asesorías Pendientes de Asignar</p>
+                <WidgetNotificationBadge items={notifsPendAsignarAdmin} tone="amber" compact />
+              </div>
               <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">{pendientesAsignarAdmin.length}</p>
-              <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">Sin docente asignado aún</p>
+              <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+                {notifsPendAsignarAdmin[0] ? notifsPendAsignarAdmin[0].titulo : 'Sin docente asignado aún'}
+              </p>
             </div>
             <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
               <UserCheck className="w-5 h-5" />
@@ -1180,14 +1411,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('asesorias', { fecha: todayStr })}
+          onClick={() => {
+            markIdsRead(notifsHoyAdmin.map(n => n.id));
+            onNavigate('asesorias', { fecha: todayStr });
+          }}
           className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-bold text-teal-800 dark:text-teal-300 uppercase">Asesorías Programadas Hoy</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-bold text-teal-800 dark:text-teal-300 uppercase">Asesorías Programadas Hoy</p>
+                <WidgetNotificationBadge items={notifsHoyAdmin} tone="teal" compact />
+              </div>
               <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{programadasHoyAdmin.length}</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Agenda de hoy ({todayStr})</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {notifsHoyAdmin[0] ? notifsHoyAdmin[0].titulo : `Agenda de hoy (${todayStr})`}
+              </p>
             </div>
             <span className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 shrink-0">
               <Clock className="w-5 h-5" />
@@ -1201,14 +1440,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
+          onClick={() => {
+            markIdsRead(notifsPorAutorizarAdmin.map(n => n.id));
+            onNavigate('solicitudes', { estado: 'pendiente' });
+          }}
           className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Por Autorizar / Revisión</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Por Autorizar / Revisión</p>
+                <WidgetNotificationBadge items={notifsPorAutorizarAdmin} tone="amber" compact />
+              </div>
               <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{solicitudesPendientes}</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Esperando dictamen académico</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {notifsPorAutorizarAdmin[0] ? notifsPorAutorizarAdmin[0].titulo : 'Esperando dictamen académico'}
+              </p>
             </div>
             <span className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 shrink-0">
               <AlertCircle className="w-5 h-5" />
@@ -1222,14 +1469,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('asesorias', { estado: 'sin_seguimiento' })}
+          onClick={() => {
+            markIdsRead(notifsPendSegAdmin.map(n => n.id));
+            onNavigate('asesorias', { estado: 'sin_seguimiento' });
+          }}
           className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Pendientes de Seguimiento</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase">Pendientes de Seguimiento</p>
+                <WidgetNotificationBadge items={notifsPendSegAdmin} tone="emerald" compact />
+              </div>
               <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{pendientesSeguimientoAdmin.length}</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Sesiones activas o sin ficha</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {notifsPendSegAdmin[0] ? notifsPendSegAdmin[0].titulo : 'Sesiones activas o sin ficha'}
+              </p>
             </div>
             <span className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 shrink-0">
               <ClipboardList className="w-5 h-5" />
@@ -1268,10 +1523,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('solicitudes', { estado: 'pendiente' })}
+          onClick={() => {
+            markIdsRead(notifsPorAutorizarAdmin.map(n => n.id));
+            onNavigate('solicitudes', { estado: 'pendiente' });
+          }}
           className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
-          <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Solicitudes Pend.</p>
+          <div className="flex items-start justify-between gap-1">
+            <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Solicitudes Pend.</p>
+            <WidgetNotificationBadge items={notifsPorAutorizarAdmin} tone="amber" compact />
+          </div>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{solicitudesPendientes}</p>
           <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 font-semibold flex items-center gap-1">
             Revisar <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
@@ -1280,10 +1541,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('asesorias', { estado: 'activas' })}
+          onClick={() => {
+            markIdsRead(notifsAprobAdmin.map(n => n.id));
+            onNavigate('asesorias', { estado: 'activas' });
+          }}
           className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
-          <p className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase">Aprobadas/Prog.</p>
+          <div className="flex items-start justify-between gap-1">
+            <p className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase">Aprobadas/Prog.</p>
+            <WidgetNotificationBadge items={notifsAprobAdmin} tone="teal" compact />
+          </div>
           <p className="text-2xl font-bold text-teal-700 dark:text-teal-400 mt-1">{asesoriasAprobadas}</p>
           <p className="text-[10px] text-teal-700 dark:text-teal-400 mt-0.5 font-semibold flex items-center gap-1">
             Ver activas <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
@@ -1292,10 +1559,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('asesorias', { estado: 'realizada' })}
+          onClick={() => {
+            markIdsRead(notifsRealizadasAdmin.map(n => n.id));
+            onNavigate('asesorias', { estado: 'realizada' });
+          }}
           className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
-          <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 uppercase">Realizadas</p>
+          <div className="flex items-start justify-between gap-1">
+            <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 uppercase">Realizadas</p>
+            <WidgetNotificationBadge items={notifsRealizadasAdmin} tone="emerald" compact />
+          </div>
           <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 mt-1">{asesoriasRealizadas}</p>
           <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 font-semibold flex items-center gap-1">
             Consultar <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
@@ -1304,10 +1577,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('asesorias', { estado: 'cancelada' })}
+          onClick={() => {
+            markIdsRead(notifsCanceladasAdmin.map(n => n.id));
+            onNavigate('asesorias', { estado: 'cancelada' });
+          }}
           className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-rose-500 dark:hover:border-rose-500 shadow-xs hover:shadow-md transition-all text-left group"
         >
-          <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-400 uppercase">Canceladas</p>
+          <div className="flex items-start justify-between gap-1">
+            <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-400 uppercase">Canceladas</p>
+            <WidgetNotificationBadge items={notifsCanceladasAdmin} tone="rose" compact />
+          </div>
           <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">{asesoriasCanceladas}</p>
           <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5 font-semibold flex items-center gap-1">
             Ver detalle <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />

@@ -19,6 +19,7 @@ import { ThemeToggleButton } from '../common/ThemeToggleButton';
 import { UserAvatar } from '../common/UserAvatar';
 import { getRoleMeta } from '../../utils/roles';
 import { useInstitutionalConfig } from '../../hooks/useInstitutionalConfig';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -38,8 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
 
-  const notifications = currentUser ? SIAADataService.getNotifications(currentUser.uid) : [];
-  const unreadCount = notifications.filter(n => !n.leida).length;
+  const { notifications, unreadCount } = useRealtimeNotifications(currentUser?.uid);
   const allUsers = SIAADataService.getUsers();
 
   const demoAccounts: { name: string; roleName: string; role: UserRole; uid: string; email: string }[] = [

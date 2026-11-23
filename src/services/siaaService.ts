@@ -90,9 +90,23 @@ export function normalizePeriodoAndAnio(
   return { periodo, anio };
 }
 
-function emitDataEvent(eventName: 'siaa-config-updated' | 'siaa-users-updated'): void {
+type SIAADataEventName =
+  | 'siaa-config-updated'
+  | 'siaa-users-updated'
+  | 'siaa-notifications-updated'
+  | 'siaa-asesorias-updated';
+
+const realtimeChannel =
+  typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('siaa-realtime-sync') : null;
+
+function emitDataEvent(eventName: SIAADataEventName): void {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event(eventName));
+    window.dispatchEvent(new CustomEvent(eventName));
+  }
+  try {
+    realtimeChannel?.postMessage({ type: eventName, ts: Date.now() });
+  } catch {
+    // Ignore channel errors if closed
   }
 }
 
@@ -328,18 +342,39 @@ export class SIAADataService {
     };
 
     setStored(STORAGE_KEYS.NOTIFICATIONS, [newNotif, ...notifs]);
+    emitDataEvent('siaa-notifications-updated');
   }
 
   static markNotificationAsRead(id: string) {
     const notifs = this.getNotifications();
     const updated = notifs.map(n => n.id === id ? { ...n, leida: true } : n);
     setStored(STORAGE_KEYS.NOTIFICATIONS, updated);
+    emitDataEvent('siaa-notifications-updated');
+  }
+
+  static markNotificationsReadByIds(userId: string, notificationIds: string[]) {
+    if (notificationIds.length === 0) return;
+    const idSet = new Set(notificationIds);
+    const notifs = this.getNotifications();
+    let changed = false;
+    const updated = notifs.map(n => {
+      if (n.userId === userId && idSet.has(n.id) && !n.leida) {
+        changed = true;
+        return { ...n, leida: true };
+      }
+      return n;
+    });
+    if (changed) {
+      setStored(STORAGE_KEYS.NOTIFICATIONS, updated);
+      emitDataEvent('siaa-notifications-updated');
+    }
   }
 
   static markAllNotificationsAsRead(userId: string) {
     const notifs = this.getNotifications();
     const updated = notifs.map(n => n.userId === userId ? { ...n, leida: true } : n);
     setStored(STORAGE_KEYS.NOTIFICATIONS, updated);
+    emitDataEvent('siaa-notifications-updated');
   }
 
   // Folio generator
@@ -456,6 +491,7 @@ export class SIAADataService {
       detalles: `Materia: ${params.materiaNombre}, Motivo: ${params.motivo.slice(0, 60)}`
     });
 
+    emitDataEvent('siaa-asesorias-updated');
     return newAsesoria;
   }
 
@@ -501,6 +537,7 @@ export class SIAADataService {
       detalles: `Materia: ${updatedAsesoria.materiaNombre}, Prioridad: ${updatedAsesoria.prioridad}`
     });
 
+    emitDataEvent('siaa-asesorias-updated');
     return updatedAsesoria;
   }
 
@@ -521,6 +558,7 @@ export class SIAADataService {
       detalles: `Registro eliminado (${target.alumnoNombre} - ${target.materiaNombre})`
     });
 
+    emitDataEvent('siaa-asesorias-updated');
     return true;
   }
 
@@ -539,6 +577,7 @@ export class SIAADataService {
       documentoAfectado: asesoria.folio,
       detalles: details || `Estado actualizado a ${asesoria.estado}`
     });
+    emitDataEvent('siaa-asesorias-updated');
   }
 
   static updateAsesoriaEstado(
@@ -550,8 +589,31 @@ export class SIAADataService {
     const list = this.getAsesorias();
     const asesoria = list.find(a => a.id === asesoriaId);
     if (!asesoria) return;
+    const prevEstado = asesoria.estado;
     asesoria.estado = nuevoEstado;
     this.updateAsesoria(asesoria, actor, `ESTADO_${nuevoEstado.toUpperCase()}`, detalles);
+
+    if (prevEstado !== nuevoEstado) {
+      const estadoLabel = nuevoEstado.replace(/_/g, ' ').toUpperCase();
+      if (asesoria.alumnoId !== actor.uid) {
+        this.sendNotification({
+          userId: asesoria.alumnoId,
+          titulo: 'Actualización de Estado de Asesoría',
+          mensaje: `Tu asesoría ${asesoria.folio} (${asesoria.materiaNombre}) cambió a estado ${estadoLabel}.`,
+          tipo: nuevoEstado === 'cancelada' || nuevoEstado === 'rechazada' ? 'cancelacion' : 'autorizacion',
+          referenciaId: asesoria.id
+        });
+      }
+      if (asesoria.docenteAsignadoId && asesoria.docenteAsignadoId !== actor.uid) {
+        this.sendNotification({
+          userId: asesoria.docenteAsignadoId,
+          titulo: 'Cambio de Estado en Sesión Asignada',
+          mensaje: `La asesoría ${asesoria.folio} de ${asesoria.alumnoNombre} cambió a estado ${estadoLabel}.`,
+          tipo: nuevoEstado === 'cancelada' || nuevoEstado === 'rechazada' ? 'cancelacion' : 'asignacion',
+          referenciaId: asesoria.id
+        });
+      }
+    }
   }
 
   // Authorize request
@@ -757,6 +819,25 @@ export class SIAADataService {
     asesoria.estado = 'cerrada';
 
     this.updateAsesoria(asesoria, actor, 'ASESORIA_CERRADA', 'Cierre oficial y archivo del expediente de asesoría.');
+
+    this.sendNotification({
+      userId: asesoria.alumnoId,
+      titulo: 'Expediente de Asesoría Cerrado',
+      mensaje: `El expediente de tu asesoría ${asesoria.folio} (${asesoria.materiaNombre}) ha sido cerrado oficialmente.`,
+      tipo: 'seguimiento',
+      referenciaId: asesoria.id
+    });
+
+    if (asesoria.docenteAsignadoId && asesoria.docenteAsignadoId !== actor.uid) {
+      this.sendNotification({
+        userId: asesoria.docenteAsignadoId,
+        titulo: 'Asesoría Cerrada Oficialmente',
+        mensaje: `La sesión ${asesoria.folio} con ${asesoria.alumnoNombre} fue cerrada por coordinación.`,
+        tipo: 'seguimiento',
+        referenciaId: asesoria.id
+      });
+    }
+
     return { success: true };
   }
 

@@ -50,6 +50,37 @@ function SIAAApp() {
     setNavPreset(prev => ({ key: prev.key + 1 }));
   }, [currentUser?.uid]);
 
+  useEffect(() => {
+    const bump = () => setDataVersion(v => v + 1);
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key === 'siaa_asesorias' || e.key === 'siaa_notifications') {
+        bump();
+      }
+    };
+    window.addEventListener('siaa-asesorias-updated', bump);
+    window.addEventListener('storage', onStorage);
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        channel = new BroadcastChannel('siaa-realtime-sync');
+        channel.onmessage = () => bump();
+      } catch {
+        channel = null;
+      }
+    }
+
+    return () => {
+      window.removeEventListener('siaa-asesorias-updated', bump);
+      window.removeEventListener('storage', onStorage);
+      try {
+        channel?.close();
+      } catch {
+        // Ignore close errors
+      }
+    };
+  }, []);
+
   // Re-fetch advisory when needed
   void dataVersion;
   const selectedAdvisory = selectedAdvisoryId
