@@ -111,6 +111,8 @@ export interface DisponibilidadEspecifica {
   materiaId?: string;
   aulaId?: string;
   modalidad: 'presencial' | 'virtual' | 'hibrida';
+  cupoMaximo?: number;
+  activo?: boolean;
   observaciones?: string;
 }
 

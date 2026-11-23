@@ -833,6 +833,29 @@ export class SIAADataService {
     setStored(STORAGE_KEYS.DISP_REC, list.filter(d => d.id !== id));
   }
 
+  static addDisponibilidadEspecifica(disp: Omit<DisponibilidadEspecifica, 'id'>): DisponibilidadEspecifica {
+    const list = this.getDisponibilidadesEspecificas();
+    const newDisp: DisponibilidadEspecifica = {
+      ...disp,
+      id: `disp-esp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    };
+    list.push(newDisp);
+    setStored(STORAGE_KEYS.DISP_ESP, list);
+    return newDisp;
+  }
+
+  static updateDisponibilidadEspecifica(
+    id: string,
+    updates: Partial<Omit<DisponibilidadEspecifica, 'id'>>
+  ): DisponibilidadEspecifica | undefined {
+    const list = this.getDisponibilidadesEspecificas();
+    const idx = list.findIndex(d => d.id === id);
+    if (idx === -1) return undefined;
+    list[idx] = { ...list[idx], ...updates };
+    setStored(STORAGE_KEYS.DISP_ESP, list);
+    return list[idx];
+  }
+
   static saveDisponibilidadEspecifica(disp: DisponibilidadEspecifica): void {
     const list = this.getDisponibilidadesEspecificas();
     const idx = list.findIndex(d => d.id === disp.id);
@@ -1279,6 +1302,10 @@ export class SIAADataService {
 
   static saveDisponibilidadRecurrenteBatch(items: DisponibilidadRecurrente[]): void {
     setStored(STORAGE_KEYS.DISP_REC, items);
+  }
+
+  static saveDisponibilidadEspecificaBatch(items: DisponibilidadEspecifica[]): void {
+    setStored(STORAGE_KEYS.DISP_ESP, items);
   }
 
   static resetToSeedData(): void {

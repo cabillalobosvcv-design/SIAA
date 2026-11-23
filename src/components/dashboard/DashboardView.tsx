@@ -385,6 +385,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const proximas = misAsesorias.filter(a => (a.fechaProgramada || '') >= todayStr && a.fechaProgramada !== todayStr && (a.estado === 'confirmada' || a.estado === 'asignada'));
     const realizadas = misAsesorias.filter(a => a.estado === 'realizada' || a.estado === 'cerrada');
     const dispRecurrentes = SIAADataService.getDisponibilidadesRecurrentes(currentUser?.uid);
+    const dispEspecificas = SIAADataService.getDisponibilidadesEspecificas(currentUser?.uid);
+    const totalHorarios = dispRecurrentes.length + dispEspecificas.length;
 
     return (
       <div className="space-y-6 animate-fadeIn">
@@ -525,7 +527,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Horarios Registrados</p>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{dispRecurrentes.length}</span>
+              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{totalHorarios}</span>
               <span className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300"><Layers className="w-5 h-5" /></span>
             </div>
             <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
