@@ -23,6 +23,7 @@ import { SIAADataService } from '../../services/siaaService';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
 import { WidgetNotificationBadge } from './WidgetNotificationBadge';
 import { LiveNotificationsBanner } from './LiveNotificationsBanner';
+import { DashboardSummaryCards } from './DashboardSummaryCards';
 import {
   ROLE_HIERARCHY,
   getRoleMeta,
@@ -142,6 +143,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     return (
       <div className="space-y-6 animate-fadeIn">
+        <DashboardSummaryCards
+          currentUser={currentUser}
+          currentRole={currentRole}
+          selectedCarrera={selectedCarrera}
+          todayStr={todayStr}
+          syncTick={syncTick}
+          getUnreadForWidget={getUnreadForWidget}
+          markIdsRead={markIdsRead}
+          onNavigate={onNavigate}
+        />
+
         {/* Welcome Hero Banner */}
         <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg border-b-4 border-amber-500 relative overflow-hidden">
           <div className="relative z-10 max-w-2xl">
@@ -482,6 +494,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     return (
       <div className="space-y-6 animate-fadeIn">
+        <DashboardSummaryCards
+          currentUser={currentUser}
+          currentRole={currentRole}
+          selectedCarrera={selectedCarrera}
+          todayStr={todayStr}
+          syncTick={syncTick}
+          getUnreadForWidget={getUnreadForWidget}
+          markIdsRead={markIdsRead}
+          onNavigate={onNavigate}
+        />
+
         {/* Header Hero */}
         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -874,6 +897,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     return (
       <div className="space-y-6 animate-fadeIn">
+        <DashboardSummaryCards
+          currentUser={currentUser}
+          currentRole={currentRole}
+          selectedCarrera={selectedCarrera}
+          todayStr={todayStr}
+          syncTick={syncTick}
+          getUnreadForWidget={getUnreadForWidget}
+          markIdsRead={markIdsRead}
+          onNavigate={onNavigate}
+        />
+
         {/* Header with Period & Career Filters */}
         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -1320,6 +1354,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      <DashboardSummaryCards
+        currentUser={currentUser}
+        currentRole={currentRole}
+        selectedCarrera={selectedCarrera}
+        todayStr={todayStr}
+        syncTick={syncTick}
+        getUnreadForWidget={getUnreadForWidget}
+        markIdsRead={markIdsRead}
+        onNavigate={onNavigate}
+      />
+
       {/* Admin Title & Quick Navigation Shortcuts */}
       <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
