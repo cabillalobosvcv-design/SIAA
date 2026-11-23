@@ -212,10 +212,15 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
                 )}
               </div>
               <div>
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">Lugar</span>
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">Sede y Lugar</span>
                 <p className="font-bold text-slate-900 dark:text-slate-100 mt-1">
                   {asesoria.aulaNombre || 'Por definir'}
                 </p>
+                {asesoria.sedeNombre && (
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                    {asesoria.sedeNombre}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -275,7 +280,19 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
                   <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">Grupo y Cuatrimestre</span>
                   <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">{asesoria.grupoNombre} • {asesoria.cuatrimestreNumero}° Cuatrimestre</p>
                 </div>
-                <div className="sm:col-span-2 md:col-span-3">
+                <div className="sm:col-span-2 md:col-span-1">
+                  <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">Sede / Unidad Académica</span>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                    {asesoria.sedeNombre || 'Universidad Tecnológica de Parral'}
+                  </p>
+                </div>
+                <div className="sm:col-span-1">
+                  <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">División Académica</span>
+                  <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">
+                    {asesoria.divisionNombre || 'Sin división asignada'}
+                  </p>
+                </div>
+                <div className="sm:col-span-1">
                   <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">Carrera / Programa</span>
                   <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{asesoria.carreraNombre}</p>
                 </div>
@@ -309,9 +326,11 @@ export const FichaAsesoriaModal: React.FC<FichaAsesoriaModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">Aula / Modalidad</span>
+                    <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">Sede, Aula y Modalidad</span>
                     <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">{asesoria.aulaNombre || 'Por definir'}</p>
-                    <p className="text-slate-500 dark:text-slate-400 capitalize text-[10px]">{asesoria.modalidad || 'Presencial'}</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-[10px]">
+                      {asesoria.sedeNombre || 'Universidad Tecnológica de Parral'} · <span className="capitalize">{asesoria.modalidad || 'Presencial'}</span>
+                    </p>
                   </div>
                 </div>
 

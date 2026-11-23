@@ -3,7 +3,7 @@ import { Modal } from '../common/Modal';
 import { Asesoria, Modalidad } from '../../types/siaa';
 import { SIAADataService } from '../../services/siaaService';
 import { useAuth } from '../../context/AuthContext';
-import { AlertCircle, Calendar, Clock, DoorOpen, User, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Building2, Calendar, Clock, DoorOpen, User, CheckCircle2 } from 'lucide-react';
 import { isTeachingRole, getRoleMeta, getUserCarreraIds, userHasCarrera } from '../../utils/roles';
 
 interface AsignacionModalProps {
@@ -23,6 +23,7 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
   const users = SIAADataService.getUsers();
   const aulas = SIAADataService.getAulas();
   const carreras = SIAADataService.getCarreras();
+  const sedes = SIAADataService.getSedes();
 
   // Teachers list (PTC Tutor, PA, Administrativo con Función Docente), prioritizing matching career
   const teachers = users
@@ -35,6 +36,7 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
     });
 
   const [selectedDocenteId, setSelectedDocenteId] = useState<string>('');
+  const [selectedSedeId, setSelectedSedeId] = useState<string>('');
   const [fecha, setFecha] = useState<string>('');
   const [horaInicio, setHoraInicio] = useState<string>('10:00');
   const [horaTermino, setHoraTermino] = useState<string>('11:00'); // 60 min default (Requirement 12)
@@ -43,11 +45,21 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
   const [observaciones, setObservaciones] = useState<string>('');
   const [conflictError, setConflictError] = useState<string | null>(null);
 
+  // Sort aulas so aulas belonging to the selected Sede appear first
+  const sortedAulas = [...aulas].sort((a, b) => {
+    const aMatch = a.sedeId === selectedSedeId ? 0 : 1;
+    const bMatch = b.sedeId === selectedSedeId ? 0 : 1;
+    return aMatch - bMatch;
+  });
+
   // Initialize values when modal opens with asesoria
   useEffect(() => {
     if (asesoria) {
+      const initSedeId = asesoria.sedeId || sedes[0]?.id || '';
+      setSelectedSedeId(initSedeId);
       setSelectedDocenteId(asesoria.docenteAsignadoId || (teachers[0]?.uid || ''));
-      setSelectedAulaId(asesoria.aulaId || (aulas[0]?.id || ''));
+      const sedeDefaultAula = aulas.find(a => a.sedeId === initSedeId) || aulas[0];
+      setSelectedAulaId(asesoria.aulaId || (sedeDefaultAula?.id || ''));
       setModalidad(asesoria.modalidad || 'presencial');
       setObservaciones(asesoria.observaciones || '');
       setConflictError(null);
@@ -65,6 +77,14 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
       if (asesoria.horaTermino) setHoraTermino(asesoria.horaTermino);
     }
   }, [asesoria, isOpen]);
+
+  const handleSedeChange = (nextSedeId: string) => {
+    setSelectedSedeId(nextSedeId);
+    const matchingAula = aulas.find(a => a.sedeId === nextSedeId);
+    if (matchingAula) {
+      setSelectedAulaId(matchingAula.id);
+    }
+  };
 
   // Handle start time change to automatically set 60 minute duration (Requirement 12)
   const handleHoraInicioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,6 +132,7 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
       horaInicio,
       horaTermino,
       aulaId: selectedAulaId,
+      sedeId: selectedSedeId || undefined,
       modalidad,
       observaciones,
       actor: currentUser
@@ -133,7 +154,7 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={`Asignación y Programación — ${asesoria.folio}`}
-      subtitle="Defina el docente asesor, fecha, horario y aula institucional sin conflicto de agenda"
+      subtitle="Defina la sede, el docente asesor, fecha, horario y aula institucional sin conflicto de agenda"
       maxWidth="2xl"
     >
       <form onSubmit={handleSave} className="space-y-4 text-xs">
@@ -148,17 +169,39 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
         )}
 
         {/* Advisory Context Card */}
-        <div className="p-3 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
-          <div>
+        <div className="p-3 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-lg flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Alumno / Materia</p>
             <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5">{asesoria.alumnoNombre}</p>
             <p className="text-xs text-slate-600 dark:text-slate-300">{asesoria.materiaNombre} ({asesoria.materiaCodigo})</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              {asesoria.divisionNombre ? `${asesoria.divisionNombre} · ` : ''}{asesoria.carreraNombre}
+            </p>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/70 text-emerald-900 dark:text-emerald-200">
               {asesoria.matricula}
             </span>
           </div>
+        </div>
+
+        {/* Sede / Unidad Académica */}
+        <div>
+          <label className="block font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+            <Building2 className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
+            Sede / Unidad Académica <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={selectedSedeId}
+            onChange={(e) => handleSedeChange(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
+          >
+            {sedes.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.nombre}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Docente Selector */}
@@ -240,11 +283,14 @@ export const AsignacionModal: React.FC<AsignacionModalProps> = ({
               onChange={(e) => setSelectedAulaId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-700 font-medium"
             >
-              {aulas.map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.nombre} — {a.edificio} ({a.capacidad} pers.)
-                </option>
-              ))}
+              {sortedAulas.map(a => {
+                const sedeTag = a.sedeId === 'sede-rio-balleza' ? 'Ext. Río Balleza' : a.sedeNombre || 'UT Parral';
+                return (
+                  <option key={a.id} value={a.id}>
+                    [{sedeTag}] {a.nombre} — {a.edificio} ({a.capacidad} pers.)
+                  </option>
+                );
+              })}
             </select>
           </div>
 

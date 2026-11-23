@@ -48,6 +48,8 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>(initialEstado || 'all');
   const [filterPrioridad, setFilterPrioridad] = useState<string>('all');
+  const [filterSede, setFilterSede] = useState<string>('all');
+  const [filterDivision, setFilterDivision] = useState<string>('all');
   const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
@@ -67,6 +69,8 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
   void refreshKey;
   void refreshTick;
   const asesorias = SIAADataService.getAsesorias();
+  const sedes = SIAADataService.getSedes();
+  const divisiones = SIAADataService.getDivisiones();
 
   // Role based filtering
   const userCarreras = getUserCarreraIds(currentUser);
@@ -93,7 +97,9 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
         a.folio.toLowerCase().includes(q) ||
         a.alumnoNombre.toLowerCase().includes(q) ||
         a.matricula.toLowerCase().includes(q) ||
-        a.materiaNombre.toLowerCase().includes(q)
+        a.materiaNombre.toLowerCase().includes(q) ||
+        (a.sedeNombre || '').toLowerCase().includes(q) ||
+        (a.divisionNombre || '').toLowerCase().includes(q)
     );
   }
 
@@ -113,6 +119,16 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Filter by prioridad
   if (filterPrioridad !== 'all') {
     displayList = displayList.filter(a => a.prioridad === filterPrioridad);
+  }
+
+  // Filter by sede
+  if (filterSede !== 'all') {
+    displayList = displayList.filter(a => a.sedeId === filterSede);
+  }
+
+  // Filter by division
+  if (filterDivision !== 'all') {
+    displayList = displayList.filter(a => a.divisionId === filterDivision);
   }
 
   const handleAuthorizeSubmit = (e: React.FormEvent) => {
@@ -225,6 +241,34 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
           </select>
 
           <select
+            value={filterSede}
+            onChange={(e) => setFilterSede(e.target.value)}
+            aria-label="Filtrar por sede o unidad académica"
+            className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+          >
+            <option value="all">Todas las Sedes</option>
+            {sedes.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.nombre}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filterDivision}
+            onChange={(e) => setFilterDivision(e.target.value)}
+            aria-label="Filtrar por división académica"
+            className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+          >
+            <option value="all">Todas las Divisiones</option>
+            {divisiones.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.codigo} · {d.nombre}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={filterPrioridad}
             onChange={(e) => setFilterPrioridad(e.target.value)}
             className="text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
@@ -236,12 +280,14 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
             <option value="baja">Baja</option>
           </select>
 
-          {(filterEstado !== 'all' || filterPrioridad !== 'all' || search.trim()) && (
+          {(filterEstado !== 'all' || filterPrioridad !== 'all' || filterSede !== 'all' || filterDivision !== 'all' || search.trim()) && (
             <button
               type="button"
               onClick={() => {
                 setFilterEstado('all');
                 setFilterPrioridad('all');
+                setFilterSede('all');
+                setFilterDivision('all');
                 setSearch('');
               }}
               className="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
@@ -263,6 +309,7 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
                 <th className="px-4 py-3">Folio</th>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Alumno</th>
+                <th className="px-4 py-3">Sede / División</th>
                 <th className="px-4 py-3">Materia</th>
                 <th className="px-4 py-3">Prioridad</th>
                 <th className="px-4 py-3">Estado</th>
@@ -272,7 +319,7 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {displayList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
                     No se encontraron solicitudes con los filtros aplicados.
                   </td>
                 </tr>
@@ -288,6 +335,14 @@ export const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-slate-900 dark:text-slate-100">{a.alumnoNombre}</p>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{a.matricula} • {a.grupoNombre}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="font-medium text-slate-800 dark:text-slate-200">
+                        {a.sedeNombre || 'Universidad Tecnológica de Parral'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {a.divisionNombre || a.carreraNombre}
+                      </p>
                     </td>
                     <td className="px-4 py-3.5">
                       <p className="font-medium text-slate-800 dark:text-slate-200">{a.materiaNombre}</p>

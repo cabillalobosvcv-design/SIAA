@@ -20,6 +20,8 @@ import { isTeachingRole, getUserCarreraIds, userHasCarrera } from '../../utils/r
 export const ReportesView: React.FC = () => {
   const { currentUser, currentRole } = useAuth();
   const asesorias = SIAADataService.getAsesorias();
+  const sedes = SIAADataService.getSedes();
+  const divisiones = SIAADataService.getDivisiones();
   const carreras = SIAADataService.getCarreras();
   const cuatrimestres = SIAADataService.getCuatrimestres();
   const docentes = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
@@ -29,6 +31,8 @@ export const ReportesView: React.FC = () => {
       ? carreras.filter(c => userCarreras.includes(c.id))
       : carreras;
 
+  const [selectedSede, setSelectedSede] = useState<string>('all');
+  const [selectedDivision, setSelectedDivision] = useState<string>('all');
   const [selectedCarrera, setSelectedCarrera] = useState<string>(
     currentRole === 'jefe_carrera' && userCarreras.length === 1 ? userCarreras[0] : 'all'
   );
@@ -37,6 +41,12 @@ export const ReportesView: React.FC = () => {
   const [selectedEstado, setSelectedEstado] = useState<string>('all');
 
   let filtered = asesorias;
+  if (selectedSede !== 'all') {
+    filtered = filtered.filter(a => a.sedeId === selectedSede);
+  }
+  if (selectedDivision !== 'all') {
+    filtered = filtered.filter(a => a.divisionId === selectedDivision);
+  }
   if (selectedCarrera !== 'all') {
     filtered = filtered.filter(a => a.carreraId === selectedCarrera);
   } else if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
@@ -144,7 +154,35 @@ export const ReportesView: React.FC = () => {
           <Filter className="w-4 h-4 text-emerald-800 dark:text-emerald-400" />
           Parámetros y Filtros del Reporte
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Sede / Unidad Académica</label>
+            <select
+              value={selectedSede}
+              onChange={(e) => setSelectedSede(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
+            >
+              <option value="all">Todas las Sedes</option>
+              {sedes.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">División Académica</label>
+            <select
+              value={selectedDivision}
+              onChange={(e) => setSelectedDivision(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
+            >
+              <option value="all">Todas las Divisiones</option>
+              {divisiones.map(d => (
+                <option key={d.id} value={d.id}>{d.codigo} - {d.nombre}</option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Programa / Carrera</label>
             <select
@@ -155,9 +193,11 @@ export const ReportesView: React.FC = () => {
               <option value="all">
                 {userCarreras.length > 0 ? 'Todas mis Carreras Adscritas' : 'Todas las Carreras'}
               </option>
-              {availableCarreras.map(c => (
-                <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
-              ))}
+              {availableCarreras
+                .filter(c => selectedDivision === 'all' || c.divisionId === selectedDivision)
+                .map(c => (
+                  <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>
+                ))}
             </select>
           </div>
 
@@ -222,8 +262,9 @@ export const ReportesView: React.FC = () => {
             <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="px-4 py-3">Folio</th>
+                <th className="px-4 py-3">Sede / Unidad</th>
                 <th className="px-4 py-3">Alumno</th>
-                <th className="px-4 py-3">Carrera</th>
+                <th className="px-4 py-3">División / Carrera</th>
                 <th className="px-4 py-3">Materia</th>
                 <th className="px-4 py-3">Docente Asesor</th>
                 <th className="px-4 py-3">Fecha</th>
@@ -235,8 +276,16 @@ export const ReportesView: React.FC = () => {
               {filtered.map(item => (
                 <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
                   <td className="px-4 py-3 font-mono font-bold text-emerald-950 dark:text-emerald-400">{item.folio}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                    {item.sedeNombre || 'Universidad Tecnológica de Parral'}
+                  </td>
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{item.alumnoNombre}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.carreraNombre}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-slate-800 dark:text-slate-200">{item.carreraNombre}</p>
+                    {item.divisionNombre && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.divisionNombre}</p>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{item.materiaNombre}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.docenteAsignadoNombre || '--'}</td>
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{item.fechaProgramada || item.fechaSolicitud}</td>

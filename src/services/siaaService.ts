@@ -1,5 +1,7 @@
 import {
   User,
+  Sede,
+  Division,
   Carrera,
   Cuatrimestre,
   Grupo,
@@ -19,6 +21,8 @@ import {
 } from '../types/siaa';
 import {
   INITIAL_USERS,
+  INITIAL_SEDES,
+  INITIAL_DIVISIONES,
   INITIAL_CARRERAS,
   INITIAL_CUATRIMESTRES,
   INITIAL_GRUPOS,
@@ -38,6 +42,8 @@ import { normalizeUserRole, getUserCarreraIds, userHasCarrera } from '../utils/r
 
 const STORAGE_KEYS = {
   USERS: 'siaa_users',
+  SEDES: 'siaa_sedes',
+  DIVISIONES: 'siaa_divisiones',
   CARRERAS: 'siaa_carreras',
   CUATRIMESTRES: 'siaa_cuatrimestres',
   GRUPOS: 'siaa_grupos',
@@ -219,8 +225,38 @@ export class SIAADataService {
     return users.map(normalizeUser);
   }
 
+  static getSedes(): Sede[] {
+    return getStored<Sede[]>(STORAGE_KEYS.SEDES, INITIAL_SEDES);
+  }
+
+  static getDivisiones(): Division[] {
+    const sedes = this.getSedes();
+    return getStored<Division[]>(STORAGE_KEYS.DIVISIONES, INITIAL_DIVISIONES).map(div => {
+      const sede = div.sedeId ? sedes.find(s => s.id === div.sedeId) : undefined;
+      return {
+        ...div,
+        sedeNombre: sede ? sede.nombre : div.sedeNombre
+      };
+    });
+  }
+
   static getCarreras(): Carrera[] {
-    return getStored<Carrera[]>(STORAGE_KEYS.CARRERAS, INITIAL_CARRERAS);
+    const divisiones = this.getDivisiones();
+    const sedes = this.getSedes();
+    return getStored<Carrera[]>(STORAGE_KEYS.CARRERAS, INITIAL_CARRERAS).map((carr, idx) => {
+      const fallbackDiv = divisiones[idx] || divisiones[0];
+      const div = carr.divisionId
+        ? divisiones.find(d => d.id === carr.divisionId)
+        : fallbackDiv;
+      const sede = carr.sedeId ? sedes.find(s => s.id === carr.sedeId) : undefined;
+      return {
+        ...carr,
+        divisionId: div?.id || carr.divisionId,
+        divisionNombre: div?.nombre || carr.divisionNombre,
+        sedeId: carr.sedeId,
+        sedeNombre: sede?.nombre || carr.sedeNombre
+      };
+    });
   }
 
   static getCuatrimestres(): Cuatrimestre[] {
@@ -251,10 +287,21 @@ export class SIAADataService {
 
   static getAulas(): Aula[] {
     const tipos = this.getTiposEspacio();
-    return getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS).map(aula => ({
-      ...aula,
-      tipo: normalizeTipoEspacioNombre(aula.tipo, tipos)
-    }));
+    const sedes = this.getSedes();
+    const defaultSede = sedes[0];
+    return getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS).map(aula => {
+      const matchedSede = aula.sedeId
+        ? sedes.find(s => s.id === aula.sedeId)
+        : aula.nombre.toLowerCase().includes('balleza')
+          ? sedes.find(s => s.id === 'sede-rio-balleza') || defaultSede
+          : defaultSede;
+      return {
+        ...aula,
+        tipo: normalizeTipoEspacioNombre(aula.tipo, tipos),
+        sedeId: matchedSede?.id || aula.sedeId,
+        sedeNombre: matchedSede?.nombre || aula.sedeNombre
+      };
+    });
   }
 
   static getDisponibilidadesRecurrentes(docenteId?: string): DisponibilidadRecurrente[] {
@@ -268,7 +315,22 @@ export class SIAADataService {
   }
 
   static getAsesorias(): Asesoria[] {
-    return getStored<Asesoria[]>(STORAGE_KEYS.ASESORIAS, INITIAL_ASESORIAS);
+    const sedes = this.getSedes();
+    const carreras = this.getCarreras();
+    const defaultSede = sedes[0];
+    return getStored<Asesoria[]>(STORAGE_KEYS.ASESORIAS, INITIAL_ASESORIAS).map(ase => {
+      const carr = carreras.find(c => c.id === ase.carreraId);
+      const matchedSede = ase.sedeId
+        ? sedes.find(s => s.id === ase.sedeId)
+        : defaultSede;
+      return {
+        ...ase,
+        sedeId: matchedSede?.id || ase.sedeId || defaultSede?.id,
+        sedeNombre: matchedSede?.nombre || ase.sedeNombre || defaultSede?.nombre,
+        divisionId: ase.divisionId || carr?.divisionId,
+        divisionNombre: ase.divisionNombre || carr?.divisionNombre
+      };
+    });
   }
 
   static getAsesoriaById(id: string): Asesoria | undefined {
@@ -500,8 +562,25 @@ export class SIAADataService {
   static createSolicitud(params: Omit<Asesoria, 'id' | 'folio' | 'estado'>): Asesoria {
     const folio = this.generateNextFolio();
     const id = `ase-${Date.now()}`;
+    const carreras = this.getCarreras();
+    const sedes = this.getSedes();
+    const divisiones = this.getDivisiones();
+
+    const carrera = carreras.find(c => c.id === params.carreraId);
+    const resolvedDivisionId = params.divisionId || carrera?.divisionId;
+    const division = resolvedDivisionId ? divisiones.find(d => d.id === resolvedDivisionId) : undefined;
+    const resolvedDivisionNombre = params.divisionNombre || division?.nombre || carrera?.divisionNombre;
+
+    const resolvedSedeId = params.sedeId || carrera?.sedeId || sedes[0]?.id;
+    const sede = resolvedSedeId ? sedes.find(s => s.id === resolvedSedeId) : undefined;
+    const resolvedSedeNombre = params.sedeNombre || sede?.nombre;
+
     const newAsesoria: Asesoria = {
       ...params,
+      divisionId: resolvedDivisionId,
+      divisionNombre: resolvedDivisionNombre,
+      sedeId: resolvedSedeId,
+      sedeNombre: resolvedSedeNombre,
       id,
       folio,
       estado: 'pendiente'
@@ -524,7 +603,7 @@ export class SIAADataService {
       this.sendNotification({
         userId: u.uid,
         titulo: 'Nueva Solicitud de Asesoría',
-        mensaje: `El alumno ${params.alumnoNombre} ha solicitado asesoría en ${params.materiaNombre} (Folio: ${folio}).`,
+        mensaje: `El alumno ${params.alumnoNombre} ha solicitado asesoría en ${params.materiaNombre}${resolvedSedeNombre ? ` (${resolvedSedeNombre})` : ''} (Folio: ${folio}).`,
         tipo: 'solicitud',
         referenciaId: id
       });
@@ -537,7 +616,7 @@ export class SIAADataService {
       accion: 'SOLICITUD_CREADA',
       modulo: 'Solicitudes',
       documentoAfectado: folio,
-      detalles: `Materia: ${params.materiaNombre}, Motivo: ${params.motivo.slice(0, 60)}`
+      detalles: `Sede: ${resolvedSedeNombre || 'N/D'}, Materia: ${params.materiaNombre}, Motivo: ${params.motivo.slice(0, 60)}`
     });
 
     emitDataEvent('siaa-asesorias-updated');
@@ -552,6 +631,10 @@ export class SIAADataService {
       matricula: string;
       carreraId: string;
       carreraNombre: string;
+      divisionId?: string;
+      divisionNombre?: string;
+      sedeId?: string;
+      sedeNombre?: string;
       grupoId: string;
       grupoNombre: string;
       cuatrimestreId: string;
@@ -733,6 +816,7 @@ export class SIAADataService {
     horaInicio: string;
     horaTermino: string;
     aulaId: string;
+    sedeId?: string;
     modalidad: 'presencial' | 'virtual' | 'hibrida';
     observaciones?: string;
     actor: User;
@@ -758,6 +842,12 @@ export class SIAADataService {
 
     const docente = this.getUsers().find(u => u.uid === params.docenteId);
     const aula = this.getAulas().find(a => a.id === params.aulaId);
+    const sedes = this.getSedes();
+    const selectedSede = params.sedeId
+      ? sedes.find(s => s.id === params.sedeId)
+      : aula?.sedeId
+        ? sedes.find(s => s.id === aula.sedeId)
+        : undefined;
 
     asesoria.docenteAsignadoId = params.docenteId;
     asesoria.docenteAsignadoNombre = docente ? `${docente.nombre} ${docente.apellidoPaterno} ${docente.apellidoMaterno}` : 'Docente Asignado';
@@ -766,6 +856,10 @@ export class SIAADataService {
     asesoria.horaTermino = params.horaTermino;
     asesoria.aulaId = params.aulaId;
     asesoria.aulaNombre = aula ? aula.nombre : 'Aula asignada';
+    if (selectedSede) {
+      asesoria.sedeId = selectedSede.id;
+      asesoria.sedeNombre = selectedSede.nombre;
+    }
     asesoria.modalidad = params.modalidad;
     asesoria.observaciones = params.observaciones;
     asesoria.estado = 'confirmada';
@@ -1210,10 +1304,188 @@ export class SIAADataService {
   }
 
   // Catalog methods
+  static addSede(sede: Omit<Sede, 'id'>, actor?: User): Sede {
+    const list = this.getSedes();
+    const newSede: Sede = {
+      ...sede,
+      id: `sede-${Date.now()}`
+    };
+    list.push(newSede);
+    setStored(STORAGE_KEYS.SEDES, list);
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_SEDE_CREADA',
+        modulo: 'Catálogos',
+        documentoAfectado: newSede.codigo,
+        detalles: `Sede / Unidad Académica registrada: ${newSede.nombre}`
+      });
+    }
+    return newSede;
+  }
+
+  static updateSede(id: string, updates: Partial<Sede>, actor?: User): Sede | undefined {
+    const list = this.getSedes();
+    const idx = list.findIndex(s => s.id === id);
+    if (idx === -1) return undefined;
+    const updated: Sede = { ...list[idx], ...updates };
+    list[idx] = updated;
+    setStored(STORAGE_KEYS.SEDES, list);
+
+    if (updates.nombre) {
+      const aulas = getStored<Aula[]>(STORAGE_KEYS.AULAS, INITIAL_AULAS);
+      let aulasChanged = false;
+      const nextAulas = aulas.map(a => {
+        if (a.sedeId === id && a.sedeNombre !== updates.nombre) {
+          aulasChanged = true;
+          return { ...a, sedeNombre: updates.nombre };
+        }
+        return a;
+      });
+      if (aulasChanged) setStored(STORAGE_KEYS.AULAS, nextAulas);
+
+      const asesorias = getStored<Asesoria[]>(STORAGE_KEYS.ASESORIAS, INITIAL_ASESORIAS);
+      let aseChanged = false;
+      const nextAse = asesorias.map(a => {
+        if (a.sedeId === id && a.sedeNombre !== updates.nombre) {
+          aseChanged = true;
+          return { ...a, sedeNombre: updates.nombre };
+        }
+        return a;
+      });
+      if (aseChanged) setStored(STORAGE_KEYS.ASESORIAS, nextAse);
+    }
+
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_SEDE_ACTUALIZADA',
+        modulo: 'Catálogos',
+        documentoAfectado: updated.codigo,
+        detalles: `Sede actualizada: ${updated.nombre}`
+      });
+    }
+    return updated;
+  }
+
+  static deleteSede(id: string, actor?: User): boolean {
+    const list = this.getSedes();
+    const target = list.find(s => s.id === id);
+    if (!target) return false;
+    setStored(STORAGE_KEYS.SEDES, list.filter(s => s.id !== id));
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_SEDE_ELIMINADA',
+        modulo: 'Catálogos',
+        documentoAfectado: target.codigo,
+        detalles: `Sede eliminada: ${target.nombre}`
+      });
+    }
+    return true;
+  }
+
+  static addDivision(division: Omit<Division, 'id'>, actor?: User): Division {
+    const list = this.getDivisiones();
+    const newDiv: Division = {
+      ...division,
+      id: `div-${Date.now()}`
+    };
+    list.push(newDiv);
+    setStored(STORAGE_KEYS.DIVISIONES, list);
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_DIVISION_CREADA',
+        modulo: 'Catálogos',
+        documentoAfectado: newDiv.codigo,
+        detalles: `División académica registrada: ${newDiv.nombre}`
+      });
+    }
+    return newDiv;
+  }
+
+  static updateDivision(id: string, updates: Partial<Division>, actor?: User): Division | undefined {
+    const list = this.getDivisiones();
+    const idx = list.findIndex(d => d.id === id);
+    if (idx === -1) return undefined;
+    const updated: Division = { ...list[idx], ...updates };
+    list[idx] = updated;
+    setStored(STORAGE_KEYS.DIVISIONES, list);
+
+    if (updates.nombre) {
+      const carreras = getStored<Carrera[]>(STORAGE_KEYS.CARRERAS, INITIAL_CARRERAS);
+      let carrChanged = false;
+      const nextCarr = carreras.map(c => {
+        if (c.divisionId === id && c.divisionNombre !== updates.nombre) {
+          carrChanged = true;
+          return { ...c, divisionNombre: updates.nombre };
+        }
+        return c;
+      });
+      if (carrChanged) setStored(STORAGE_KEYS.CARRERAS, nextCarr);
+
+      const asesorias = getStored<Asesoria[]>(STORAGE_KEYS.ASESORIAS, INITIAL_ASESORIAS);
+      let aseChanged = false;
+      const nextAse = asesorias.map(a => {
+        if (a.divisionId === id && a.divisionNombre !== updates.nombre) {
+          aseChanged = true;
+          return { ...a, divisionNombre: updates.nombre };
+        }
+        return a;
+      });
+      if (aseChanged) setStored(STORAGE_KEYS.ASESORIAS, nextAse);
+    }
+
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_DIVISION_ACTUALIZADA',
+        modulo: 'Catálogos',
+        documentoAfectado: updated.codigo,
+        detalles: `División actualizada: ${updated.nombre}`
+      });
+    }
+    return updated;
+  }
+
+  static deleteDivision(id: string, actor?: User): boolean {
+    const list = this.getDivisiones();
+    const target = list.find(d => d.id === id);
+    if (!target) return false;
+    setStored(STORAGE_KEYS.DIVISIONES, list.filter(d => d.id !== id));
+    if (actor) {
+      this.logAudit({
+        usuarioId: actor.uid,
+        usuarioNombre: `${actor.nombre} ${actor.apellidoPaterno}`,
+        rol: actor.rol,
+        accion: 'CATALOGO_DIVISION_ELIMINADA',
+        modulo: 'Catálogos',
+        documentoAfectado: target.codigo,
+        detalles: `División eliminada: ${target.nombre}`
+      });
+    }
+    return true;
+  }
+
   static addCarrera(carrera: Omit<Carrera, 'id'>): Carrera {
     const list = this.getCarreras();
+    const div = carrera.divisionId ? this.getDivisiones().find(d => d.id === carrera.divisionId) : undefined;
+    const sede = carrera.sedeId ? this.getSedes().find(s => s.id === carrera.sedeId) : undefined;
     const newCarrera: Carrera = {
       ...carrera,
+      divisionNombre: div ? div.nombre : carrera.divisionNombre,
+      sedeNombre: sede ? sede.nombre : carrera.sedeNombre,
       id: `carr-${Date.now()}`
     };
     list.push(newCarrera);
@@ -1225,8 +1497,36 @@ export class SIAADataService {
     const list = this.getCarreras();
     const idx = list.findIndex(c => c.id === id);
     if (idx === -1) return undefined;
-    list[idx] = { ...list[idx], ...updates };
+    const div = updates.divisionId ? this.getDivisiones().find(d => d.id === updates.divisionId) : undefined;
+    const sede = updates.sedeId ? this.getSedes().find(s => s.id === updates.sedeId) : undefined;
+    const updated: Carrera = {
+      ...list[idx],
+      ...updates,
+      divisionNombre: updates.divisionId !== undefined ? (div?.nombre || updates.divisionNombre) : list[idx].divisionNombre,
+      sedeNombre: updates.sedeId !== undefined ? (sede?.nombre || updates.sedeNombre) : list[idx].sedeNombre
+    };
+    list[idx] = updated;
     setStored(STORAGE_KEYS.CARRERAS, list);
+
+    // Sync division metadata onto existing asesorias of this career
+    if (updates.divisionId !== undefined || updates.nombre !== undefined) {
+      const asesorias = getStored<Asesoria[]>(STORAGE_KEYS.ASESORIAS, INITIAL_ASESORIAS);
+      let aseChanged = false;
+      const nextAse = asesorias.map(a => {
+        if (a.carreraId === id) {
+          aseChanged = true;
+          return {
+            ...a,
+            carreraNombre: updated.nombre,
+            divisionId: updated.divisionId,
+            divisionNombre: updated.divisionNombre
+          };
+        }
+        return a;
+      });
+      if (aseChanged) setStored(STORAGE_KEYS.ASESORIAS, nextAse);
+    }
+
     return list[idx];
   }
 
@@ -1569,6 +1869,14 @@ export class SIAADataService {
     emitDataEvent('siaa-users-updated');
   }
 
+  static saveSedesBatch(sedes: Sede[]): void {
+    setStored(STORAGE_KEYS.SEDES, sedes);
+  }
+
+  static saveDivisionesBatch(divisiones: Division[]): void {
+    setStored(STORAGE_KEYS.DIVISIONES, divisiones);
+  }
+
   static saveCarrerasBatch(carreras: Carrera[]): void {
     setStored(STORAGE_KEYS.CARRERAS, carreras);
   }
@@ -1599,6 +1907,8 @@ export class SIAADataService {
 
   static resetToSeedData(): void {
     localStorage.removeItem(STORAGE_KEYS.USERS);
+    localStorage.removeItem(STORAGE_KEYS.SEDES);
+    localStorage.removeItem(STORAGE_KEYS.DIVISIONES);
     localStorage.removeItem(STORAGE_KEYS.CARRERAS);
     localStorage.removeItem(STORAGE_KEYS.CUATRIMESTRES);
     localStorage.removeItem(STORAGE_KEYS.GRUPOS);
@@ -1620,6 +1930,8 @@ export class SIAADataService {
     return asesorias.filter(a => {
       if (filters.fechaInicio && a.fechaProgramada && a.fechaProgramada < filters.fechaInicio) return false;
       if (filters.fechaFin && a.fechaProgramada && a.fechaProgramada > filters.fechaFin) return false;
+      if (filters.sedeId && a.sedeId !== filters.sedeId) return false;
+      if (filters.divisionId && a.divisionId !== filters.divisionId) return false;
       if (filters.carreraId && a.carreraId !== filters.carreraId) return false;
       if (filters.grupoId && a.grupoId !== filters.grupoId) return false;
       if (filters.cuatrimestreId && a.cuatrimestreId !== filters.cuatrimestreId) return false;
@@ -1649,6 +1961,8 @@ export class SIAADataService {
     const rows = data.map(item => ({
       'Folio': item.folio,
       'Fecha Solicitud': item.fechaSolicitud,
+      'Sede / Unidad Académica': item.sedeNombre || 'Universidad Tecnológica de Parral',
+      'División': item.divisionNombre || 'Sin división',
       'Matrícula': item.matricula,
       'Alumno': item.alumnoNombre,
       'Carrera': item.carreraNombre,
@@ -1744,8 +2058,9 @@ export class SIAADataService {
     // Table
     const tableBody = data.map(item => [
       item.folio,
-      item.matricula,
-      item.alumnoNombre,
+      item.sedeNombre || 'Universidad Tecnológica de Parral',
+      `${item.alumnoNombre}\n(${item.matricula})`,
+      item.divisionNombre ? `${item.carreraNombre}\n${item.divisionNombre}` : item.carreraNombre,
       item.materiaNombre,
       item.docenteAsignadoNombre || 'No asignado',
       item.fechaProgramada || item.fechaSolicitud,
@@ -1756,18 +2071,18 @@ export class SIAADataService {
 
     autoTable(doc, {
       startY: 46,
-      head: [['Folio', 'Matrícula', 'Alumno', 'Materia', 'Docente Asesor', 'Fecha', 'Horario', 'Aula', 'Estado']],
+      head: [['Folio', 'Sede / Unidad', 'Alumno', 'Carrera / División', 'Materia', 'Docente Asesor', 'Fecha', 'Horario', 'Aula', 'Estado']],
       body: tableBody,
       theme: 'grid',
       headStyles: {
         fillColor: [19, 78, 74],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 8.5
+        fontSize: 7.5
       },
       styles: {
-        fontSize: 8,
-        cellPadding: 2.5,
+        fontSize: 7.5,
+        cellPadding: 2,
         textColor: [30, 41, 59]
       },
       alternateRowStyles: {
@@ -1941,12 +2256,15 @@ export class SIAADataService {
     // Section 1: Datos del Alumno y Académicos
     drawSectionHeader('1. INFORMACIÓN DEL ALUMNO Y PROGRAMA ACADÉMICO');
     drawTwoColumnRow('Alumno:', asesoria.alumnoNombre, 'Matrícula:', asesoria.matricula);
+    drawWrappedField('Sede / Unidad:', asesoria.sedeNombre || 'Universidad Tecnológica de Parral', 34);
+    drawWrappedField('División:', asesoria.divisionNombre || 'Sin división asignada', 34);
     drawWrappedField('Carrera:', asesoria.carreraNombre, 34);
     drawTwoColumnRow('Grupo:', asesoria.grupoNombre, 'Cuatrimestre:', `${asesoria.cuatrimestreNumero}° Cuatrimestre`);
     currentY += 2;
 
     // Section 2: Datos de la Asesoría
     drawSectionHeader('2. DETALLES DE LA ASESORÍA Y PROGRAMACIÓN');
+    drawWrappedField('Sede requerida:', asesoria.sedeNombre || 'Universidad Tecnológica de Parral', 34);
     drawWrappedField('Materia:', `${asesoria.materiaNombre} (${asesoria.materiaCodigo})`, 34);
     drawTwoColumnRow(
       'Docente Asesor:',

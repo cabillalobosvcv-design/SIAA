@@ -412,7 +412,15 @@ export function printFichaAsesoria(asesoria: Asesoria, config: InstitutionalConf
             <div class="label">Grupo y Cuatrimestre</div>
             <div class="value">${escapeHtml(asesoria.grupoNombre)} • ${escapeHtml(asesoria.cuatrimestreNumero)}° Cuatrimestre</div>
           </div>
-          <div class="full-span">
+          <div>
+            <div class="label">Sede / Unidad Académica</div>
+            <div class="value">${escapeHtml(asesoria.sedeNombre || 'Universidad Tecnológica de Parral')}</div>
+          </div>
+          <div>
+            <div class="label">División Académica</div>
+            <div class="value">${escapeHtml(asesoria.divisionNombre || 'Sin división asignada')}</div>
+          </div>
+          <div>
             <div class="label">Carrera / Programa</div>
             <div class="value">${escapeHtml(asesoria.carreraNombre)}</div>
           </div>
@@ -439,9 +447,9 @@ export function printFichaAsesoria(asesoria: Asesoria, config: InstitutionalConf
             <div class="value">${fechaHora}</div>
           </div>
           <div>
-            <div class="label">Aula / Modalidad</div>
+            <div class="label">Sede, Aula y Modalidad</div>
             <div class="value">${escapeHtml(asesoria.aulaNombre || 'Por definir')}</div>
-            <div class="subvalue">${escapeHtml((asesoria.modalidad || 'presencial').toUpperCase())}</div>
+            <div class="subvalue">${escapeHtml(asesoria.sedeNombre || 'Universidad Tecnológica de Parral')} · ${escapeHtml((asesoria.modalidad || 'presencial').toUpperCase())}</div>
           </div>
         </div>
 

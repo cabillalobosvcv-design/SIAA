@@ -234,7 +234,9 @@ function SIAAApp() {
             <UsuariosView onOpenBulkImport={() => handleOpenBulkImport('usuarios')} />
           )}
 
-          {(currentView === 'carreras' ||
+          {(currentView === 'sedes' ||
+            currentView === 'divisiones' ||
+            currentView === 'carreras' ||
             currentView === 'materias' ||
             currentView === 'grupos' ||
             currentView === 'cuatrimestres' ||

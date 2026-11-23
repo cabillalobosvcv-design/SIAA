@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { SIAADataService, OFFICIAL_PERIODS, normalizePeriodoAndAnio } from '../../services/siaaService';
+import { BulkEntityType } from '../../services/bulkImportService';
 import { useAuth } from '../../context/AuthContext';
-import { PeriodoOficial, TipoEspacio, UserStatus } from '../../types/siaa';
+import { PeriodoOficial, SedeTipo, TipoEspacio, UserStatus } from '../../types/siaa';
 import {
   GraduationCap,
   Layers,
   CalendarDays,
   BookOpen,
   DoorOpen,
+  Building2,
+  GitBranch,
   PlusCircle,
   Search,
   CheckCircle2,
@@ -22,11 +25,18 @@ import {
 import { Modal } from '../common/Modal';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 
-export type CatalogoTipo = 'carreras' | 'grupos' | 'cuatrimestres' | 'materias' | 'aulas';
+export type CatalogoTipo = 'sedes' | 'divisiones' | 'carreras' | 'grupos' | 'cuatrimestres' | 'materias' | 'aulas';
+
+const isBulkEntity = (catalog: CatalogoTipo): catalog is Extract<CatalogoTipo, BulkEntityType> =>
+  catalog === 'carreras' ||
+  catalog === 'materias' ||
+  catalog === 'grupos' ||
+  catalog === 'cuatrimestres' ||
+  catalog === 'aulas';
 
 interface CatalogosViewProps {
   initialType?: CatalogoTipo;
-  onOpenBulkImport?: (catalog: CatalogoTipo) => void;
+  onOpenBulkImport?: (catalog: BulkEntityType) => void;
 }
 
 export const CatalogosView: React.FC<CatalogosViewProps> = ({
@@ -51,6 +61,11 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   // Generic form fields
   const [nombre, setNombre] = useState('');
   const [codigo, setCodigo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [sedeId, setSedeId] = useState('');
+  const [sedeTipo, setSedeTipo] = useState<SedeTipo>('campus_principal');
+  const [direccion, setDireccion] = useState('');
+  const [divisionId, setDivisionId] = useState('');
   const [carreraId, setCarreraId] = useState('');
   const [cuatrimestreId, setCuatrimestreId] = useState('');
   const [horasSemanales, setHorasSemanales] = useState(4);
@@ -62,6 +77,13 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   const [capacidad, setCapacidad] = useState(30);
   const [tipoEspacio, setTipoEspacio] = useState('Aula Teórica');
   const [aulaTipoFilter, setAulaTipoFilter] = useState<string>('todos');
+  const [aulaSedeFilter, setAulaSedeFilter] = useState<string>('todos');
+  const [carreraDivisionFilter, setCarreraDivisionFilter] = useState<string>('todos');
+
+  // Inline quick division creation inside Carrera modal
+  const [showInlineNewDivision, setShowInlineNewDivision] = useState(false);
+  const [inlineNewDivCodigo, setInlineNewDivCodigo] = useState('');
+  const [inlineNewDivNombre, setInlineNewDivNombre] = useState('');
 
   // Inline quick space-type creation inside Aula modal
   const [showInlineNewTipo, setShowInlineNewTipo] = useState(false);
@@ -82,6 +104,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   } | null>(null);
 
   void refreshTick;
+  const sedes = SIAADataService.getSedes();
+  const divisiones = SIAADataService.getDivisiones();
   const carreras = SIAADataService.getCarreras();
   const grupos = SIAADataService.getGrupos();
   const cuatrimestres = SIAADataService.getCuatrimestres();
@@ -91,9 +115,33 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   const activeTiposEspacio = tiposEspacio.filter(t => t.estado === 'activo');
 
   const q = search.trim().toLowerCase();
-  const filteredCarreras = q
-    ? carreras.filter(c => c.nombre.toLowerCase().includes(q) || c.codigo.toLowerCase().includes(q))
-    : carreras;
+  const filteredSedes = q
+    ? sedes.filter(
+        s =>
+          s.nombre.toLowerCase().includes(q) ||
+          s.codigo.toLowerCase().includes(q) ||
+          (s.direccion || '').toLowerCase().includes(q)
+      )
+    : sedes;
+  const filteredDivisiones = q
+    ? divisiones.filter(
+        d =>
+          d.nombre.toLowerCase().includes(q) ||
+          d.codigo.toLowerCase().includes(q) ||
+          (d.sedeNombre || '').toLowerCase().includes(q)
+      )
+    : divisiones;
+  const filteredCarreras = carreras.filter(c => {
+    const matchesSearch =
+      !q ||
+      c.nombre.toLowerCase().includes(q) ||
+      c.codigo.toLowerCase().includes(q) ||
+      (c.divisionNombre || '').toLowerCase().includes(q) ||
+      (c.sedeNombre || '').toLowerCase().includes(q);
+    const matchesDivision =
+      carreraDivisionFilter === 'todos' || c.divisionId === carreraDivisionFilter;
+    return matchesSearch && matchesDivision;
+  });
   const filteredMaterias = q
     ? materias.filter(
         m =>
@@ -107,11 +155,14 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
       !q ||
       a.nombre.toLowerCase().includes(q) ||
       a.edificio.toLowerCase().includes(q) ||
-      a.tipo.toLowerCase().includes(q);
+      a.tipo.toLowerCase().includes(q) ||
+      (a.sedeNombre || '').toLowerCase().includes(q);
     const matchesType =
       aulaTipoFilter === 'todos' ||
       a.tipo.trim().toLowerCase() === aulaTipoFilter.trim().toLowerCase();
-    return matchesSearch && matchesType;
+    const matchesSede =
+      aulaSedeFilter === 'todos' || a.sedeId === aulaSedeFilter;
+    return matchesSearch && matchesType && matchesSede;
   });
   const filteredGrupos = q
     ? grupos.filter(
@@ -266,10 +317,34 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
     setRefreshTick(t => t + 1);
   };
 
+  const handleCreateInlineDivision = () => {
+    const cleanName = inlineNewDivNombre.trim();
+    if (!cleanName) return;
+    const cleanCode = (inlineNewDivCodigo.trim() || cleanName.slice(0, 4)).toUpperCase();
+    const created = SIAADataService.addDivision(
+      {
+        codigo: cleanCode,
+        nombre: cleanName,
+        estado: 'activo'
+      },
+      currentUser || undefined
+    );
+    setDivisionId(created.id);
+    setInlineNewDivCodigo('');
+    setInlineNewDivNombre('');
+    setShowInlineNewDivision(false);
+    setRefreshTick(t => t + 1);
+  };
+
   const handleOpenCreate = () => {
     setEditingId(null);
     setNombre('');
     setCodigo('');
+    setDescripcion('');
+    setSedeId(activeCatalog === 'aulas' ? (sedes[0]?.id || '') : '');
+    setSedeTipo('extension_academica');
+    setDireccion('');
+    setDivisionId(divisiones[0]?.id || '');
     setCarreraId(carreras[0]?.id || '');
     setCuatrimestreId(cuatrimestres[0]?.id || '');
     setHorasSemanales(4);
@@ -282,6 +357,9 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
     setTipoEspacio(activeTiposEspacio[0]?.nombre || tiposEspacio[0]?.nombre || 'Aula Teórica');
     setShowInlineNewTipo(false);
     setInlineNewTipoNombre('');
+    setShowInlineNewDivision(false);
+    setInlineNewDivCodigo('');
+    setInlineNewDivNombre('');
     setIsModalOpen(true);
   };
 
@@ -289,11 +367,79 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
     e.preventDefault();
     if (!nombre.trim()) return;
 
-    if (activeCatalog === 'carreras') {
+    if (activeCatalog === 'sedes') {
       if (editingId) {
-        SIAADataService.updateCarrera(editingId, { nombre: nombre.trim(), codigo: codigo.trim().toUpperCase() });
+        SIAADataService.updateSede(
+          editingId,
+          {
+            codigo: codigo.trim().toUpperCase(),
+            nombre: nombre.trim(),
+            tipo: sedeTipo,
+            direccion: direccion.trim()
+          },
+          currentUser || undefined
+        );
       } else {
-        SIAADataService.addCarrera({ codigo: codigo.trim().toUpperCase() || 'CARR', nombre: nombre.trim(), estado: 'activo' });
+        SIAADataService.addSede(
+          {
+            codigo: codigo.trim().toUpperCase() || 'SEDE',
+            nombre: nombre.trim(),
+            tipo: sedeTipo,
+            direccion: direccion.trim(),
+            estado: 'activo'
+          },
+          currentUser || undefined
+        );
+      }
+    } else if (activeCatalog === 'divisiones') {
+      const selectedSede = sedes.find(s => s.id === sedeId);
+      if (editingId) {
+        SIAADataService.updateDivision(
+          editingId,
+          {
+            codigo: codigo.trim().toUpperCase(),
+            nombre: nombre.trim(),
+            descripcion: descripcion.trim(),
+            sedeId: selectedSede?.id || undefined,
+            sedeNombre: selectedSede?.nombre || undefined
+          },
+          currentUser || undefined
+        );
+      } else {
+        SIAADataService.addDivision(
+          {
+            codigo: codigo.trim().toUpperCase() || 'DIV',
+            nombre: nombre.trim(),
+            descripcion: descripcion.trim(),
+            sedeId: selectedSede?.id || undefined,
+            sedeNombre: selectedSede?.nombre || undefined,
+            estado: 'activo'
+          },
+          currentUser || undefined
+        );
+      }
+    } else if (activeCatalog === 'carreras') {
+      const divObj = divisiones.find(d => d.id === divisionId);
+      const selectedSede = sedes.find(s => s.id === sedeId);
+      if (editingId) {
+        SIAADataService.updateCarrera(editingId, {
+          nombre: nombre.trim(),
+          codigo: codigo.trim().toUpperCase(),
+          divisionId: divObj?.id || undefined,
+          divisionNombre: divObj?.nombre || undefined,
+          sedeId: selectedSede?.id || undefined,
+          sedeNombre: selectedSede?.nombre || undefined
+        });
+      } else {
+        SIAADataService.addCarrera({
+          codigo: codigo.trim().toUpperCase() || 'CARR',
+          nombre: nombre.trim(),
+          divisionId: divObj?.id || undefined,
+          divisionNombre: divObj?.nombre || undefined,
+          sedeId: selectedSede?.id || undefined,
+          sedeNombre: selectedSede?.nombre || undefined,
+          estado: 'activo'
+        });
       }
     } else if (activeCatalog === 'materias') {
       const cObj = carreras.find(c => c.id === carreraId) || carreras[0];
@@ -321,12 +467,15 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
         });
       }
     } else if (activeCatalog === 'aulas') {
+      const selectedSede = sedes.find(s => s.id === sedeId) || sedes[0];
       if (editingId) {
         SIAADataService.updateAula(editingId, {
           nombre: nombre.trim(),
           edificio: edificio.trim(),
           capacidad,
-          tipo: tipoEspacio.trim()
+          tipo: tipoEspacio.trim(),
+          sedeId: selectedSede?.id,
+          sedeNombre: selectedSede?.nombre
         });
       } else {
         SIAADataService.addAula({
@@ -334,6 +483,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
           edificio: edificio.trim(),
           capacidad,
           tipo: tipoEspacio.trim() || 'Aula Teórica',
+          sedeId: selectedSede?.id,
+          sedeNombre: selectedSede?.nombre,
           estado: 'activo'
         });
       }
@@ -386,7 +537,11 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
 
   const handleConfirmDelete = () => {
     if (!confirmDeleteItem) return;
-    if (activeCatalog === 'carreras') {
+    if (activeCatalog === 'sedes') {
+      SIAADataService.deleteSede(confirmDeleteItem.id, currentUser || undefined);
+    } else if (activeCatalog === 'divisiones') {
+      SIAADataService.deleteDivision(confirmDeleteItem.id, currentUser || undefined);
+    } else if (activeCatalog === 'carreras') {
       SIAADataService.deleteCarrera(confirmDeleteItem.id, currentUser || undefined);
     } else if (activeCatalog === 'materias') {
       SIAADataService.deleteMateria(confirmDeleteItem.id, currentUser || undefined);
@@ -402,6 +557,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   };
 
   const catalogTabs: { id: CatalogoTipo; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { id: 'sedes', label: 'Sedes y Extensiones', icon: Building2 },
+    { id: 'divisiones', label: 'Divisiones', icon: GitBranch },
     { id: 'carreras', label: 'Carreras', icon: GraduationCap },
     { id: 'materias', label: 'Materias', icon: BookOpen },
     { id: 'grupos', label: 'Grupos', icon: Layers },
@@ -410,6 +567,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
   ];
 
   const singularLabels: Record<CatalogoTipo, string> = {
+    sedes: 'SEDE / UNIDAD ACADÉMICA',
+    divisiones: 'DIVISIÓN ACADÉMICA',
     carreras: 'CARRERA',
     materias: 'MATERIA',
     grupos: 'GRUPO',
@@ -426,7 +585,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
             Catálogos Académicos del Sistema
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Registro, modificación y eliminación de programas educativos, asignaturas curriculares, grupos, cuatrimestres y aulas.
+            Administración de sedes universitarias, divisiones académicas, programas educativos, asignaturas, grupos, cuatrimestres y aulas.
           </p>
         </div>
 
@@ -445,7 +604,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
             </button>
           )}
 
-          {onOpenBulkImport && (
+          {onOpenBulkImport && isBulkEntity(activeCatalog) && (
             <button
               type="button"
               onClick={() => onOpenBulkImport(activeCatalog)}
@@ -481,7 +640,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                   setActiveCatalog(tab.id);
                   setSearch('');
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-emerald-900 dark:bg-emerald-700 text-white shadow-xs'
                     : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
@@ -494,21 +653,53 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
           })}
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {activeCatalog === 'aulas' && (
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {activeCatalog === 'carreras' && (
             <select
-              value={aulaTipoFilter}
-              onChange={(e) => setAulaTipoFilter(e.target.value)}
-              aria-label="Filtrar por tipo de espacio"
+              value={carreraDivisionFilter}
+              onChange={(e) => setCarreraDivisionFilter(e.target.value)}
+              aria-label="Filtrar carreras por división"
               className="px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
             >
-              <option value="todos">Todos los tipos ({aulas.length})</option>
-              {tiposEspacio.map(t => (
-                <option key={t.id} value={t.nombre}>
-                  {t.nombre} ({getAulasCountByTipo(t.nombre)})
+              <option value="todos">Todas las divisiones ({carreras.length})</option>
+              {divisiones.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.codigo} — {d.nombre}
                 </option>
               ))}
             </select>
+          )}
+
+          {activeCatalog === 'aulas' && (
+            <>
+              <select
+                value={aulaSedeFilter}
+                onChange={(e) => setAulaSedeFilter(e.target.value)}
+                aria-label="Filtrar aulas por sede"
+                className="px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="todos">Todas las sedes ({aulas.length})</option>
+                {sedes.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre} ({aulas.filter(a => a.sedeId === s.id).length})
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={aulaTipoFilter}
+                onChange={(e) => setAulaTipoFilter(e.target.value)}
+                aria-label="Filtrar por tipo de espacio"
+                className="px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="todos">Todos los tipos ({aulas.length})</option>
+                {tiposEspacio.map(t => (
+                  <option key={t.id} value={t.nombre}>
+                    {t.nombre} ({getAulasCountByTipo(t.nombre)})
+                  </option>
+                ))}
+              </select>
+            </>
           )}
 
           <div className="relative flex-1 sm:w-64">
@@ -527,6 +718,147 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
       {/* Content Table by Catalog */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
+          {/* SEDES / UNIDADES ACADÉMICAS */}
+          {activeCatalog === 'sedes' && (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="px-4 py-3">Código</th>
+                  <th className="px-4 py-3">Sede / Unidad Académica</th>
+                  <th className="px-4 py-3">Tipo</th>
+                  <th className="px-4 py-3">Dirección</th>
+                  <th className="px-4 py-3 text-right">Aulas</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredSedes.map(s => {
+                  const aulasCount = aulas.filter(a => a.sedeId === s.id).length;
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-900 dark:text-emerald-400 whitespace-nowrap">
+                        {s.codigo}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{s.nombre}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        {s.tipo === 'campus_principal' ? 'Campus Principal' : 'Extensión Unidad Académica'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{s.direccion || '--'}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-slate-700 dark:text-slate-300">
+                        {aulasCount}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
+                          {s.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(s.id);
+                              setNombre(s.nombre);
+                              setCodigo(s.codigo);
+                              setSedeTipo(s.tipo === 'campus_principal' ? 'campus_principal' : 'extension_academica');
+                              setDireccion(s.direccion || '');
+                              setIsModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                            title="Modificar sede"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteItem({ id: s.id, label: `${s.codigo} - ${s.nombre}` })}
+                            className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                            title="Eliminar sede"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          {/* DIVISIONES ACADÉMICAS */}
+          {activeCatalog === 'divisiones' && (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="px-4 py-3">Código</th>
+                  <th className="px-4 py-3">División Académica</th>
+                  <th className="px-4 py-3">Sede / Cobertura</th>
+                  <th className="px-4 py-3 text-right">Carreras</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredDivisiones.map(d => {
+                  const carrerasCount = carreras.filter(c => c.divisionId === d.id).length;
+                  return (
+                    <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-900 dark:text-emerald-400 whitespace-nowrap">
+                        {d.codigo}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">{d.nombre}</div>
+                        {d.descripcion && (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{d.descripcion}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                        {d.sedeNombre || 'Todas las sedes / Institucional'}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold text-slate-700 dark:text-slate-300">
+                        {carrerasCount}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
+                          {d.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(d.id);
+                              setNombre(d.nombre);
+                              setCodigo(d.codigo);
+                              setDescripcion(d.descripcion || '');
+                              setSedeId(d.sedeId || '');
+                              setIsModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                            title="Modificar división"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteItem({ id: d.id, label: `${d.codigo} - ${d.nombre}` })}
+                            className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded transition-colors"
+                            title="Eliminar división"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
           {/* CARRERAS */}
           {activeCatalog === 'carreras' && (
             <table className="w-full text-left text-xs">
@@ -534,6 +866,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                 <tr>
                   <th className="px-4 py-3">Código</th>
                   <th className="px-4 py-3">Nombre del Programa Académico</th>
+                  <th className="px-4 py-3">División Académica</th>
+                  <th className="px-4 py-3">Sede / Cobertura</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
@@ -543,6 +877,12 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                   <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-emerald-900 dark:text-emerald-400">{c.codigo}</td>
                     <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{c.nombre}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                      {c.divisionNombre || 'Sin división asignada'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                      {c.sedeNombre || 'Ambas sedes (Parral / Río Balleza)'}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-transparent dark:border-emerald-800/70">
                         {c.estado}
@@ -556,6 +896,11 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                             setEditingId(c.id);
                             setNombre(c.nombre);
                             setCodigo(c.codigo);
+                            setDivisionId(c.divisionId || divisiones[0]?.id || '');
+                            setSedeId(c.sedeId || '');
+                            setShowInlineNewDivision(false);
+                            setInlineNewDivCodigo('');
+                            setInlineNewDivNombre('');
                             setIsModalOpen(true);
                           }}
                           className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
@@ -644,6 +989,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
               <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="px-4 py-3">Espacio / Aula</th>
+                  <th className="px-4 py-3">Sede / Unidad Académica</th>
                   <th className="px-4 py-3">Edificio</th>
                   <th className="px-4 py-3">Tipo de Espacio</th>
                   <th className="px-4 py-3">Capacidad</th>
@@ -654,7 +1000,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredAulas.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
                       No hay aulas o espacios registrados que coincidan con el filtro actual.
                     </td>
                   </tr>
@@ -662,6 +1008,9 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                   filteredAulas.map(a => (
                     <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                       <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{a.nombre}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                        {a.sedeNombre || 'Universidad Tecnológica de Parral'}
+                      </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{a.edificio}</td>
                       <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{a.tipo}</td>
                       <td className="px-4 py-3 font-medium tabular-nums text-slate-800 dark:text-slate-200">{a.capacidad} estudiantes</td>
@@ -677,6 +1026,7 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                             onClick={() => {
                               setEditingId(a.id);
                               setNombre(a.nombre);
+                              setSedeId(a.sedeId || sedes[0]?.id || '');
                               setEdificio(a.edificio);
                               setCapacidad(a.capacidad);
                               setTipoEspacio(a.tipo);
@@ -850,8 +1200,8 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
             />
           </div>
 
-          {(activeCatalog === 'carreras' || activeCatalog === 'materias') && (
-            <div className={activeCatalog === 'materias' ? 'grid grid-cols-2 gap-3' : ''}>
+          {(activeCatalog === 'sedes' || activeCatalog === 'divisiones' || activeCatalog === 'carreras' || activeCatalog === 'materias') && (
+            <div className={activeCatalog === 'materias' || activeCatalog === 'sedes' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Clave o Código Institucional *</label>
                 <input
@@ -859,10 +1209,24 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                   required
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
-                  placeholder="Ej: MAT-201 o ITIDS"
+                  placeholder="Ej: UTP-PARRAL, DTI, ITIDS o MAT-201"
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono"
                 />
               </div>
+
+              {activeCatalog === 'sedes' && (
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Tipo de Unidad *</label>
+                  <select
+                    value={sedeTipo}
+                    onChange={(e) => setSedeTipo(e.target.value as SedeTipo)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium"
+                  >
+                    <option value="campus_principal">Campus Principal</option>
+                    <option value="extension_academica">Extensión Unidad Académica</option>
+                  </select>
+                </div>
+              )}
 
               {activeCatalog === 'materias' && (
                 <div>
@@ -877,6 +1241,122 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {activeCatalog === 'sedes' && (
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Dirección / Ubicación</label>
+              <input
+                type="text"
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value)}
+                placeholder="Ej: Av. Tecnológico #57, Hidalgo del Parral, Chih."
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+              />
+            </div>
+          )}
+
+          {activeCatalog === 'divisiones' && (
+            <div className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Sede / Cobertura</label>
+                <select
+                  value={sedeId}
+                  onChange={(e) => setSedeId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                >
+                  <option value="">Todas las sedes / Institucional</option>
+                  {sedes.map(s => (
+                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Descripción</label>
+                <input
+                  type="text"
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                  placeholder="Áreas académicas y carreras que agrupa la división"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                />
+              </div>
+            </div>
+          )}
+
+          {activeCatalog === 'carreras' && (
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">División Académica *</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowInlineNewDivision(prev => !prev)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 hover:underline whitespace-nowrap shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {showInlineNewDivision ? 'Cerrar' : 'Nueva división'}
+                  </button>
+                </div>
+                <select
+                  value={divisionId}
+                  onChange={(e) => setDivisionId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium"
+                >
+                  <option value="">Sin división asignada</option>
+                  {divisiones.map(d => (
+                    <option key={d.id} value={d.id}>
+                      [{d.codigo}] {d.nombre}
+                    </option>
+                  ))}
+                </select>
+
+                {showInlineNewDivision && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        value={inlineNewDivCodigo}
+                        onChange={(e) => setInlineNewDivCodigo(e.target.value)}
+                        placeholder="Código (ej: DTI)"
+                        className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md font-mono"
+                      />
+                      <input
+                        type="text"
+                        value={inlineNewDivNombre}
+                        onChange={(e) => setInlineNewDivNombre(e.target.value)}
+                        placeholder="Nombre de la división..."
+                        className="col-span-2 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleCreateInlineDivision}
+                        disabled={!inlineNewDivNombre.trim()}
+                        className="px-3 py-1.5 rounded-md bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-xs"
+                      >
+                        Agregar división
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Sede / Cobertura del Programa</label>
+                <select
+                  value={sedeId}
+                  onChange={(e) => setSedeId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100"
+                >
+                  <option value="">Ambas sedes (Parral y Extensión Río Balleza)</option>
+                  {sedes.map(s => (
+                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -971,6 +1451,21 @@ export const CatalogosView: React.FC<CatalogosViewProps> = ({
 
           {activeCatalog === 'aulas' && (
             <div className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Sede / Unidad Académica *</label>
+                <select
+                  value={sedeId}
+                  onChange={(e) => setSedeId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 font-medium"
+                >
+                  {sedes.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Edificio</label>

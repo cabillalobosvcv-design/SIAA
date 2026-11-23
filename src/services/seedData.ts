@@ -1,5 +1,7 @@
 import {
   User,
+  Sede,
+  Division,
   Carrera,
   Cuatrimestre,
   Grupo,
@@ -13,11 +15,69 @@ import {
   AuditLog
 } from '../types/siaa';
 
+export const INITIAL_SEDES: Sede[] = [
+  {
+    id: 'sede-parral',
+    codigo: 'UTP-PARRAL',
+    nombre: 'Universidad Tecnológica de Parral',
+    tipo: 'Campus Central',
+    direccion: 'Av. General Jesús Lozoya Solís s/n, Hidalgo del Parral, Chih.',
+    estado: 'activo',
+    fechaCreacion: '2024-01-15'
+  },
+  {
+    id: 'sede-rio-balleza',
+    codigo: 'UAR-BALLEZA',
+    nombre: 'Extensión Unidad Académica Río Balleza',
+    tipo: 'Extensión Académica',
+    direccion: 'Unidad Académica Río Balleza, Balleza, Chih.',
+    estado: 'activo',
+    fechaCreacion: '2024-01-15'
+  }
+];
+
+export const INITIAL_DIVISIONES: Division[] = [
+  {
+    id: 'div-1',
+    codigo: 'DTI',
+    nombre: 'División de Tecnologías de la Información',
+    descripcion: 'Programas educativos de desarrollo de software, redes e infraestructura digital.',
+    estado: 'activo',
+    fechaCreacion: '2024-01-15'
+  },
+  {
+    id: 'div-2',
+    codigo: 'DIIP',
+    nombre: 'División de Ingeniería Industrial y Procesos',
+    descripcion: 'Programas educativos enfocados en manufactura, calidad, logística y productividad.',
+    estado: 'activo',
+    fechaCreacion: '2024-01-15'
+  },
+  {
+    id: 'div-3',
+    codigo: 'DMER',
+    nombre: 'División de Mecatrónica y Energías',
+    descripcion: 'Automatización industrial, instrumentación y energías renovables.',
+    estado: 'activo',
+    fechaCreacion: '2024-01-15'
+  },
+  {
+    id: 'div-4',
+    codigo: 'DDNA',
+    nombre: 'División de Desarrollo de Negocios y Administración',
+    descripcion: 'Gestión empresarial, mercadotecnia, innovación y administración estratégica.',
+    estado: 'activo',
+    fechaCreacion: '2024-01-15'
+  }
+];
+
 export const INITIAL_CARRERAS: Carrera[] = [
   {
     id: 'carr-1',
     nombre: 'Ingeniería en Tecnologías de la Información y Desarrollo de Software',
     codigo: 'ITIDS',
+    divisionId: 'div-1',
+    divisionNombre: 'División de Tecnologías de la Información',
     descripcion: 'Formación de profesionistas capaces de desarrollar soluciones de software multiplataforma y sistemas inteligentes.',
     estado: 'activo',
     fechaCreacion: '2024-01-15'
@@ -26,6 +86,8 @@ export const INITIAL_CARRERAS: Carrera[] = [
     id: 'carr-2',
     nombre: 'Ingeniería Industrial y Gestión de la Producción',
     codigo: 'IIGP',
+    divisionId: 'div-2',
+    divisionNombre: 'División de Ingeniería Industrial y Procesos',
     descripcion: 'Optimización de procesos productivos, gestión de la calidad y logística empresarial.',
     estado: 'activo',
     fechaCreacion: '2024-01-15'
@@ -105,11 +167,13 @@ export const INITIAL_TIPOS_ESPACIO: TipoEspacio[] = [
 ];
 
 export const INITIAL_AULAS: Aula[] = [
-  { id: 'aul-1', nombre: 'Aula Magna 101', edificio: 'Edificio A', capacidad: 40, ubicacion: 'Planta Baja', tipo: 'Aula Teórica', estado: 'activo' },
-  { id: 'aul-2', nombre: 'Laboratorio de Cómputo 3', edificio: 'Edificio B - Tecnologías', capacidad: 30, ubicacion: 'Segundo Piso', tipo: 'Sala de Cómputo', estado: 'activo' },
-  { id: 'aul-3', nombre: 'Laboratorio de Redes y Sistemas', edificio: 'Edificio B - Tecnologías', capacidad: 25, ubicacion: 'Primer Piso', tipo: 'Laboratorio', estado: 'activo' },
-  { id: 'aul-4', nombre: 'Aula de Asesorías Personalizadas 204', edificio: 'Edificio C - Cubículos', capacidad: 10, ubicacion: 'Segundo Piso', tipo: 'Cubículo de Asesorías', estado: 'activo' },
-  { id: 'aul-5', nombre: 'Taller de Ergonomía y Manufactura', edificio: 'Edificio D - Ingenierías', capacidad: 35, ubicacion: 'Planta Baja', tipo: 'Taller', estado: 'activo' }
+  { id: 'aul-1', nombre: 'Aula Magna 101', edificio: 'Edificio A', capacidad: 40, ubicacion: 'Planta Baja', tipo: 'Aula Teórica', sedeId: 'sede-parral', sedeNombre: 'Universidad Tecnológica de Parral', estado: 'activo' },
+  { id: 'aul-2', nombre: 'Laboratorio de Cómputo 3', edificio: 'Edificio B - Tecnologías', capacidad: 30, ubicacion: 'Segundo Piso', tipo: 'Sala de Cómputo', sedeId: 'sede-parral', sedeNombre: 'Universidad Tecnológica de Parral', estado: 'activo' },
+  { id: 'aul-3', nombre: 'Laboratorio de Redes y Sistemas', edificio: 'Edificio B - Tecnologías', capacidad: 25, ubicacion: 'Primer Piso', tipo: 'Laboratorio', sedeId: 'sede-parral', sedeNombre: 'Universidad Tecnológica de Parral', estado: 'activo' },
+  { id: 'aul-4', nombre: 'Aula de Asesorías Personalizadas 204', edificio: 'Edificio C - Cubículos', capacidad: 10, ubicacion: 'Segundo Piso', tipo: 'Cubículo de Asesorías', sedeId: 'sede-parral', sedeNombre: 'Universidad Tecnológica de Parral', estado: 'activo' },
+  { id: 'aul-5', nombre: 'Taller de Ergonomía y Manufactura', edificio: 'Edificio D - Ingenierías', capacidad: 35, ubicacion: 'Planta Baja', tipo: 'Taller', sedeId: 'sede-parral', sedeNombre: 'Universidad Tecnológica de Parral', estado: 'activo' },
+  { id: 'aul-6', nombre: 'Aula Extensión Río Balleza 101', edificio: 'Módulo Principal Río Balleza', capacidad: 30, ubicacion: 'Planta Baja', tipo: 'Aula Teórica', sedeId: 'sede-rio-balleza', sedeNombre: 'Extensión Unidad Académica Río Balleza', estado: 'activo' },
+  { id: 'aul-7', nombre: 'Centro de Cómputo Río Balleza', edificio: 'Módulo Tecnológico Río Balleza', capacidad: 24, ubicacion: 'Planta Alta', tipo: 'Sala de Cómputo', sedeId: 'sede-rio-balleza', sedeNombre: 'Extensión Unidad Académica Río Balleza', estado: 'activo' }
 ];
 
 export const INITIAL_USERS: User[] = [
@@ -475,6 +539,10 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     matricula: '2024-SW0101',
     carreraId: 'carr-1',
     carreraNombre: 'Ingeniería en Tecnologías de la Información y Desarrollo de Software',
+    divisionId: 'div-1',
+    divisionNombre: 'División de Tecnologías de la Información',
+    sedeId: 'sede-parral',
+    sedeNombre: 'Universidad Tecnológica de Parral',
     grupoId: 'grup-1',
     grupoNombre: 'SW-101',
     cuatrimestreId: 'cuat-1',
@@ -533,6 +601,10 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     matricula: '2024-SW0301',
     carreraId: 'carr-1',
     carreraNombre: 'Ingeniería en Tecnologías de la Información y Desarrollo de Software',
+    divisionId: 'div-1',
+    divisionNombre: 'División de Tecnologías de la Información',
+    sedeId: 'sede-parral',
+    sedeNombre: 'Universidad Tecnológica de Parral',
     grupoId: 'grup-2',
     grupoNombre: 'SW-301',
     cuatrimestreId: 'cuat-3',
@@ -560,7 +632,7 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     fechaAutorizacion: '2026-09-16',
     observacionesAutorizacion: 'Aprobada prioritariamente.'
   },
-  // 3. Solicitud Pendiente de Autorización
+  // 3. Solicitud Pendiente de Autorización (Extensión Río Balleza)
   {
     id: 'ase-003',
     folio: 'SIAA-2026-000003',
@@ -570,6 +642,10 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     matricula: '2024-IN0101',
     carreraId: 'carr-2',
     carreraNombre: 'Ingeniería Industrial y Gestión de la Producción',
+    divisionId: 'div-2',
+    divisionNombre: 'División de Ingeniería Industrial y Procesos',
+    sedeId: 'sede-rio-balleza',
+    sedeNombre: 'Extensión Unidad Académica Río Balleza',
     grupoId: 'grup-3',
     grupoNombre: 'IND-101',
     cuatrimestreId: 'cuat-1',
@@ -585,7 +661,7 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     prioridad: 'media',
     estado: 'pendiente'
   },
-  // 4. Asesoría Aprobada pero pendiente de asignación de horario/docente
+  // 4. Asesoría Aprobada pero pendiente de asignación de horario/docente (Extensión Río Balleza)
   {
     id: 'ase-004',
     folio: 'SIAA-2026-000004',
@@ -595,6 +671,10 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     matricula: '2024-IN0301',
     carreraId: 'carr-2',
     carreraNombre: 'Ingeniería Industrial y Gestión de la Producción',
+    divisionId: 'div-2',
+    divisionNombre: 'División de Ingeniería Industrial y Procesos',
+    sedeId: 'sede-rio-balleza',
+    sedeNombre: 'Extensión Unidad Académica Río Balleza',
     grupoId: 'grup-4',
     grupoNombre: 'IND-301',
     cuatrimestreId: 'cuat-3',
@@ -611,7 +691,7 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     estado: 'aprobada',
     autorizadaPor: 'Ing. Roberto Estrada Gómez',
     fechaAutorizacion: '2026-09-17',
-    observacionesAutorizacion: 'Aprobada para asignación de docente asesor.'
+    observacionesAutorizacion: 'Aprobada para asignación de docente asesor en Extensión Río Balleza.'
   },
   // 5. Asesoría Realizada pendiente de cierre final
   {
@@ -623,6 +703,10 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     matricula: '2024-SW0302',
     carreraId: 'carr-1',
     carreraNombre: 'Ingeniería en Tecnologías de la Información y Desarrollo de Software',
+    divisionId: 'div-1',
+    divisionNombre: 'División de Tecnologías de la Información',
+    sedeId: 'sede-parral',
+    sedeNombre: 'Universidad Tecnológica de Parral',
     grupoId: 'grup-2',
     grupoNombre: 'SW-301',
     cuatrimestreId: 'cuat-3',
@@ -669,6 +753,10 @@ export const INITIAL_ASESORIAS: Asesoria[] = [
     matricula: '2024-SW0102',
     carreraId: 'carr-1',
     carreraNombre: 'Ingeniería en Tecnologías de la Información y Desarrollo de Software',
+    divisionId: 'div-1',
+    divisionNombre: 'División de Tecnologías de la Información',
+    sedeId: 'sede-parral',
+    sedeNombre: 'Universidad Tecnológica de Parral',
     grupoId: 'grup-1',
     grupoNombre: 'SW-101',
     cuatrimestreId: 'cuat-1',

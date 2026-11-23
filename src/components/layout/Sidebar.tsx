@@ -18,7 +18,9 @@ import {
   UserCircle,
   PlusCircle,
   ShieldCheck,
-  Upload
+  Upload,
+  Building2,
+  GitBranch
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types/siaa';
@@ -29,6 +31,8 @@ import { useInstitutionalConfig } from '../../hooks/useInstitutionalConfig';
 export type NavView =
   | 'dashboard'
   | 'usuarios'
+  | 'sedes'
+  | 'divisiones'
   | 'carreras'
   | 'grupos'
   | 'cuatrimestres'
@@ -116,6 +120,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     // Admin Catalogs & Management
     { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users, roles: ['admin'] },
+    { id: 'sedes', label: 'Sedes y Extensiones', icon: Building2, roles: ['admin'] },
+    { id: 'divisiones', label: 'Divisiones Académicas', icon: GitBranch, roles: ['admin'] },
     { id: 'carreras', label: 'Carreras', icon: GraduationCap, roles: ['admin'] },
     { id: 'grupos', label: 'Grupos', icon: Layers, roles: ['admin'] },
     { id: 'cuatrimestres', label: 'Cuatrimestres', icon: CalendarDays, roles: ['admin'] },

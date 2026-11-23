@@ -20,7 +20,9 @@ import {
   LayoutGrid,
   List,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Building2,
+  GitBranch
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { AsesoriaCard } from './AsesoriaCard';
@@ -73,6 +75,8 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   const [filterFechaDesde, setFilterFechaDesde] = useState<string>(initialFecha || '');
   const [filterFechaHasta, setFilterFechaHasta] = useState<string>(initialFecha || '');
   const [filterCarrera, setFilterCarrera] = useState<string>(initialCarrera || 'all');
+  const [filterSede, setFilterSede] = useState<string>('all');
+  const [filterDivision, setFilterDivision] = useState<string>('all');
   const [filterDocente, setFilterDocente] = useState<string>('all');
   const [filterMateria, setFilterMateria] = useState<string>('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(true);
@@ -86,6 +90,8 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
     setFilterFechaDesde(initialFecha || '');
     setFilterFechaHasta(initialFecha || '');
     setFilterCarrera(initialCarrera || 'all');
+    setFilterSede('all');
+    setFilterDivision('all');
     setFilterDocente('all');
     setFilterMateria('all');
   }, [initialEstado, initialFecha, initialCarrera, presetKey, isHistoryView]);
@@ -94,6 +100,8 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   void refreshTick;
 
   const asesorias = SIAADataService.getAsesorias();
+  const sedes = SIAADataService.getSedes();
+  const divisiones = SIAADataService.getDivisiones();
   const carreras = SIAADataService.getCarreras();
   const allMaterias = SIAADataService.getMaterias();
   const teachers = SIAADataService.getUsers().filter(u => isTeachingRole(u.rol));
@@ -105,8 +113,16 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
       ? carreras.filter(c => userCarreras.includes(c.id))
       : carreras;
 
+  const availableCarrerasByDiv =
+    filterDivision !== 'all'
+      ? availableCarreras.filter(c => c.divisionId === filterDivision)
+      : availableCarreras;
+
   const availableMaterias = allMaterias.filter(m => {
     if (filterCarrera !== 'all') return m.carreraId === filterCarrera;
+    if (filterDivision !== 'all') {
+      return availableCarrerasByDiv.some(c => c.id === m.carreraId);
+    }
     if ((currentRole === 'jefe_carrera' || currentRole === 'director') && userCarreras.length > 0) {
       return userCarreras.includes(m.carreraId);
     }
@@ -143,7 +159,9 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
         a.materiaCodigo.toLowerCase().includes(q) ||
         a.matricula.toLowerCase().includes(q) ||
         (a.temasDificultad && a.temasDificultad.toLowerCase().includes(q)) ||
-        (a.aulaNombre && a.aulaNombre.toLowerCase().includes(q))
+        (a.aulaNombre && a.aulaNombre.toLowerCase().includes(q)) ||
+        (a.sedeNombre && a.sedeNombre.toLowerCase().includes(q)) ||
+        (a.divisionNombre && a.divisionNombre.toLowerCase().includes(q))
     );
   }
 
@@ -176,6 +194,16 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
       if (filterFechaHasta && targetDate > filterFechaHasta) return false;
       return true;
     });
+  }
+
+  // Sede filter
+  if (filterSede !== 'all') {
+    displayList = displayList.filter(a => a.sedeId === filterSede);
+  }
+
+  // Division filter
+  if (filterDivision !== 'all') {
+    displayList = displayList.filter(a => a.divisionId === filterDivision);
   }
 
   // Career filter
@@ -233,12 +261,16 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
     setFilterEstado(defaultEstado);
     setFilterFechaDesde('');
     setFilterFechaHasta('');
+    setFilterSede('all');
+    setFilterDivision('all');
     setFilterCarrera('all');
     setFilterDocente('all');
     setFilterMateria('all');
   };
 
   const advancedActiveCount = [
+    filterSede !== 'all',
+    filterDivision !== 'all',
     filterDocente !== 'all',
     filterMateria !== 'all',
     filterCarrera !== 'all',
@@ -455,12 +487,125 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
           </div>
         </div>
 
-        {/* Collapsible Advanced Filter Controls (Docente, Materia, Fecha, Carrera) */}
+        {/* Collapsible Advanced Filter Controls (Sede, División, Docente, Materia, Carrera, Fecha) */}
         {showAdvancedFilters && (
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+            {/* Sede Filter */}
+            <div className="lg:col-span-3">
+              <label
+                htmlFor="filter-sede"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                Sede / Unidad Académica
+              </label>
+              <select
+                id="filter-sede"
+                value={filterSede}
+                onChange={(e) => setFilterSede(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="all">Todas las Sedes</option>
+                {sedes.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* División Filter */}
+            <div className="lg:col-span-3">
+              <label
+                htmlFor="filter-division"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                <GitBranch className="w-3.5 h-3.5 text-slate-400" />
+                División Académica
+              </label>
+              <select
+                id="filter-division"
+                value={filterDivision}
+                onChange={(e) => {
+                  const nextDiv = e.target.value;
+                  setFilterDivision(nextDiv);
+                  if (nextDiv !== 'all' && filterCarrera !== 'all') {
+                    const currCarr = carreras.find(c => c.id === filterCarrera);
+                    if (currCarr && currCarr.divisionId !== nextDiv) {
+                      setFilterCarrera('all');
+                    }
+                  }
+                }}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="all">Todas las Divisiones</option>
+                {divisiones.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.codigo} · {d.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Carrera Filter */}
+            <div className="lg:col-span-3">
+              <label
+                htmlFor="filter-carrera"
+                className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                Carrera
+              </label>
+              <select
+                id="filter-carrera"
+                value={filterCarrera}
+                onChange={(e) => {
+                  const nextCarrera = e.target.value;
+                  setFilterCarrera(nextCarrera);
+                  if (nextCarrera !== 'all' && filterMateria !== 'all') {
+                    const currentMat = allMaterias.find(m => m.id === filterMateria);
+                    if (currentMat && currentMat.carreraId !== nextCarrera) {
+                      setFilterMateria('all');
+                    }
+                  }
+                }}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="all">Todas las Carreras</option>
+                {availableCarrerasByDiv.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.codigo} — {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Materia Filter */}
+            <div className="lg:col-span-3">
+              <label
+                htmlFor="filter-materia"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                Materia
+              </label>
+              <select
+                id="filter-materia"
+                value={filterMateria}
+                onChange={(e) => setFilterMateria(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              >
+                <option value="all">Todas las Materias</option>
+                {availableMaterias.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.codigo} · {m.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Docente Filter */}
             {!isTeacher && (
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-4">
                 <label
                   htmlFor="filter-docente"
                   className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
@@ -485,64 +630,8 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               </div>
             )}
 
-            {/* Materia Filter */}
-            <div className={isTeacher ? 'lg:col-span-4' : 'lg:col-span-3'}>
-              <label
-                htmlFor="filter-materia"
-                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-slate-400" />
-                Materia
-              </label>
-              <select
-                id="filter-materia"
-                value={filterMateria}
-                onChange={(e) => setFilterMateria(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              >
-                <option value="all">Todas las Materias</option>
-                {availableMaterias.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.codigo} · {m.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Carrera Filter */}
-            <div className="lg:col-span-2">
-              <label
-                htmlFor="filter-carrera"
-                className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
-              >
-                Carrera
-              </label>
-              <select
-                id="filter-carrera"
-                value={filterCarrera}
-                onChange={(e) => {
-                  const nextCarrera = e.target.value;
-                  setFilterCarrera(nextCarrera);
-                  if (nextCarrera !== 'all' && filterMateria !== 'all') {
-                    const currentMat = allMaterias.find(m => m.id === filterMateria);
-                    if (currentMat && currentMat.carreraId !== nextCarrera) {
-                      setFilterMateria('all');
-                    }
-                  }
-                }}
-                className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              >
-                <option value="all">Todas las Carreras</option>
-                {availableCarreras.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.codigo}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Date Range Filters */}
-            <div className="lg:col-span-2">
+            <div className={isTeacher ? 'lg:col-span-6' : 'lg:col-span-4'}>
               <label
                 htmlFor="filter-fecha-desde"
                 className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
@@ -559,7 +648,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
               />
             </div>
 
-            <div className={isTeacher ? 'lg:col-span-4' : 'lg:col-span-2'}>
+            <div className={isTeacher ? 'lg:col-span-6' : 'lg:col-span-4'}>
               <label
                 htmlFor="filter-fecha-hasta"
                 className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1"
@@ -710,7 +799,7 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                   <th className="px-4 py-3">Materia</th>
                   <th className="px-4 py-3">Docente Asesor</th>
                   <th className="px-4 py-3">Fecha y Horario</th>
-                  {!isSimplified && <th className="px-4 py-3">Espacio</th>}
+                  {!isSimplified && <th className="px-4 py-3">Sede / Espacio</th>}
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
@@ -765,7 +854,10 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                         <td className="px-4 py-3.5">
                           <p className="font-medium text-slate-800 dark:text-slate-200">{item.materiaNombre}</p>
                           {!isSimplified && (
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.materiaCodigo}</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                              <span className="font-mono">{item.materiaCodigo}</span>
+                              {item.divisionNombre ? ` · ${item.divisionNombre}` : ''}
+                            </p>
                           )}
                         </td>
                         <td className="px-4 py-3.5">
@@ -778,9 +870,13 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
                           )}
                         </td>
                         {!isSimplified && (
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <p className="text-slate-700 dark:text-slate-200 font-medium">{item.aulaNombre || 'Aula asignada'}</p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{item.modalidad}</p>
+                          <td className="px-4 py-3.5">
+                            <p className="text-slate-700 dark:text-slate-200 font-medium">
+                              {item.sedeNombre || 'Universidad Tecnológica de Parral'}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {item.aulaNombre || 'Aula por asignar'} · <span className="capitalize">{item.modalidad}</span>
+                            </p>
                           </td>
                         )}
                         <td className="px-4 py-3.5">

@@ -25,16 +25,45 @@ export interface User {
   cuatrimestreId?: string;
   estado: UserStatus;
   fotoURL?: string;
+  sedeId?: string;
+  sedeNombre?: string;
   fechaCreacion: string;
   fechaActualizacion: string;
 }
 
 export type SIAAUser = User;
 
+export type SedeTipo = 'campus_principal' | 'extension_academica';
+
+export interface Sede {
+  id: string;
+  nombre: string;
+  codigo: string;
+  tipo?: SedeTipo | string;
+  direccion?: string;
+  estado: UserStatus;
+  fechaCreacion?: string;
+}
+
+export interface Division {
+  id: string;
+  nombre: string;
+  codigo: string;
+  sedeId?: string;
+  sedeNombre?: string;
+  descripcion?: string;
+  estado: UserStatus;
+  fechaCreacion?: string;
+}
+
 export interface Carrera {
   id: string;
   nombre: string;
   codigo: string;
+  divisionId?: string;
+  divisionNombre?: string;
+  sedeId?: string;
+  sedeNombre?: string;
   descripcion?: string;
   estado: UserStatus;
   fechaCreacion?: string;
@@ -83,6 +112,8 @@ export interface Aula {
   capacidad: number;
   ubicacion?: string;
   tipo: string;
+  sedeId?: string;
+  sedeNombre?: string;
   estado: UserStatus;
 }
 
@@ -174,6 +205,10 @@ export interface Asesoria {
   matricula: string;
   carreraId: string;
   carreraNombre: string;
+  divisionId?: string;
+  divisionNombre?: string;
+  sedeId?: string;
+  sedeNombre?: string;
   grupoId: string;
   grupoNombre: string;
   cuatrimestreId: string;
@@ -246,6 +281,8 @@ export interface FilterParams {
   fechaFin?: string;
   alumno?: string;
   matricula?: string;
+  sedeId?: string;
+  divisionId?: string;
   carreraId?: string;
   grupoId?: string;
   cuatrimestreId?: string;

@@ -63,10 +63,18 @@ export const AsesoriaCard: React.FC<AsesoriaCardProps> = ({
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
               {item.materiaNombre}
             </h3>
-            {!simplified && item.carreraNombre && (
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                {item.carreraNombre}
-              </p>
+            {simplified ? (
+              item.sedeNombre && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                  {item.sedeNombre}
+                </p>
+              )
+            ) : (
+              (item.carreraNombre || item.divisionNombre || item.sedeNombre) && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                  {[item.divisionNombre, item.carreraNombre].filter(Boolean).join(' · ')}
+                </p>
+              )
             )}
           </div>
           <div className="shrink-0">
@@ -126,12 +134,13 @@ export const AsesoriaCard: React.FC<AsesoriaCardProps> = ({
               )}
             </span>
 
-            {!simplified && (item.aulaNombre || item.modalidad) && (
+            {!simplified && (item.sedeNombre || item.aulaNombre || item.modalidad) && (
               <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                 <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                 <span>
-                  {item.aulaNombre || 'Aula por asignar'}
-                  {item.modalidad ? ` · ${item.modalidad}` : ''}
+                  {[item.sedeNombre, item.aulaNombre || 'Aula por asignar', item.modalidad]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
               </span>
             )}
