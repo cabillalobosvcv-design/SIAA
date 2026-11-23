@@ -13,12 +13,15 @@ import {
   ChevronRight,
   Sparkles,
   UserCheck,
-  ClipboardList
+  ClipboardList,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import { NavView } from '../layout/Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
+import { useSimplifiedAdvisoryMode } from '../../hooks/useSimplifiedAdvisoryMode';
 import { SIAADataService } from '../../services/siaaService';
 import { StatusBadge, PriorityBadge } from '../common/StatusBadge';
 import { WidgetNotificationBadge } from './WidgetNotificationBadge';
@@ -73,6 +76,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     markIdsRead,
     markAllRead
   } = useRealtimeNotifications(currentUser?.uid);
+  const { isSimplified, toggleSimplified } = useSimplifiedAdvisoryMode();
   void syncTick;
   const asesorias = SIAADataService.getAsesorias();
   const users = SIAADataService.getUsers();
@@ -323,43 +327,60 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Próxima Asesoría Destacada */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/70 dark:bg-slate-800/50">
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Clock className="w-5 h-5 text-emerald-800 dark:text-emerald-400" />
               Próxima Asesoría Programada
             </h2>
-            {proximaAsesoria && (
-              <StatusBadge estado={proximaAsesoria.estado} />
-            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSimplified}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+                title={isSimplified ? 'Cambiar a vista detallada' : 'Ocultar detalles técnicos'}
+              >
+                {isSimplified ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
+                {isSimplified ? 'Vista detallada' : 'Vista simplificada'}
+              </button>
+              {proximaAsesoria && (
+                <StatusBadge estado={proximaAsesoria.estado} />
+              )}
+            </div>
           </div>
 
           <div className="p-6">
             {proximaAsesoria ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className={`grid grid-cols-1 md:grid-cols-2 ${isSimplified ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}>
                   <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
                     <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Materia</span>
                     <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.materiaNombre}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">{proximaAsesoria.materiaCodigo}</p>
+                    {!isSimplified && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">{proximaAsesoria.materiaCodigo}</p>
+                    )}
                   </div>
 
                   <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
                     <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Docente Asesor</span>
                     <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.docenteAsignadoNombre || 'Por asignar'}</p>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Asesor Especialista</p>
+                    {!isSimplified && (
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Asesor Especialista</p>
+                    )}
                   </div>
 
                   <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
                     <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Fecha y Horario</span>
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.fechaProgramada || 'Pendiente'}</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">{proximaAsesoria.horaInicio} - {proximaAsesoria.horaTermino} hrs</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1 tabular-nums">{proximaAsesoria.fechaProgramada || 'Pendiente'}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 tabular-nums">{proximaAsesoria.horaInicio} - {proximaAsesoria.horaTermino} hrs</p>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Lugar / Modalidad</span>
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.aulaNombre || 'Aula asignada'}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{proximaAsesoria.modalidad || 'Presencial'}</p>
-                  </div>
+                  {!isSimplified && (
+                    <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase block">Lugar / Modalidad</span>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{proximaAsesoria.aulaNombre || 'Aula asignada'}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{proximaAsesoria.modalidad || 'Presencial'}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -707,18 +728,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Hoy & Urgentes */}
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 Asesorías de Hoy / En Curso
               </h2>
-              <button
-                type="button"
-                onClick={() => onNavigate('asesorias', { fecha: todayStr })}
-                className="text-xs text-emerald-800 dark:text-emerald-400 font-semibold hover:underline"
-              >
-                Fecha: {todayStr} →
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSimplified}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0"
+                  title={isSimplified ? 'Cambiar a vista detallada' : 'Ocultar folios y datos técnicos'}
+                >
+                  {isSimplified ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
+                  {isSimplified ? 'Detallada' : 'Simplificada'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('asesorias', { fecha: todayStr })}
+                  className="text-xs text-emerald-800 dark:text-emerald-400 font-semibold hover:underline whitespace-nowrap shrink-0"
+                >
+                  Fecha: {todayStr} →
+                </button>
+              </div>
             </div>
 
             {hoy.length === 0 ? (
@@ -728,23 +760,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             ) : (
               <div className="space-y-3">
                 {hoy.map(item => (
-                  <div key={item.id} className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between">
-                    <div>
+                  <div key={item.id} className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-emerald-900 dark:text-emerald-300">{item.folio}</span>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{item.materiaNombre}</span>
+                        {!isSimplified && (
+                          <span className="font-mono text-xs font-bold text-emerald-900 dark:text-emerald-300">{item.folio}</span>
+                        )}
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{item.materiaNombre}</span>
                       </div>
                       <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                        Alumno: <span className="font-semibold">{item.alumnoNombre}</span> ({item.matricula})
+                        Alumno: <span className="font-semibold">{item.alumnoNombre}</span>
+                        {!isSimplified && ` (${item.matricula})`}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {item.horaInicio} - {item.horaTermino} hrs | Aula: {item.aulaNombre}
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
+                        {item.horaInicio} - {item.horaTermino} hrs
+                        {!isSimplified && item.aulaNombre ? ` | Aula: ${item.aulaNombre}` : ''}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => onSelectAdvisory(item.id)}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-700"
+                      className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-700 whitespace-nowrap shrink-0"
                     >
                       Registrar Resultado
                     </button>

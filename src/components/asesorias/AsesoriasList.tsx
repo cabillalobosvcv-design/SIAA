@@ -16,9 +16,15 @@ import {
   SlidersHorizontal,
   BookOpen,
   UserCheck,
-  RotateCcw
+  RotateCcw,
+  LayoutGrid,
+  List,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { AsesoriaCard } from './AsesoriaCard';
+import { useSimplifiedAdvisoryMode } from '../../hooks/useSimplifiedAdvisoryMode';
 import {
   canAuthorizeOrAssign,
   canRegisterSeguimiento,
@@ -70,6 +76,8 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
   const [filterDocente, setFilterDocente] = useState<string>('all');
   const [filterMateria, setFilterMateria] = useState<string>('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(true);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const { isSimplified, setIsSimplified } = useSimplifiedAdvisoryMode();
   const [refreshTick, setRefreshTick] = useState(0);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<Asesoria | null>(null);
 
@@ -290,11 +298,77 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {/* Simplified vs Detailed Toggle */}
+          <div
+            role="group"
+            aria-label="Nivel de detalle en visualización"
+            className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1"
+          >
+            <button
+              type="button"
+              onClick={() => setIsSimplified(true)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                isSimplified
+                  ? 'bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Ocultar detalles técnicos para lectura ágil de docente y alumno"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              Simplificada
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSimplified(false)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                !isSimplified
+                  ? 'bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Mostrar todos los folios, códigos, espacios y datos técnicos"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              Detallada
+            </button>
+          </div>
+
+          {/* Cards vs Table Switcher */}
+          <div
+            role="group"
+            aria-label="Formato de listado"
+            className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1"
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                viewMode === 'cards'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Tarjetas
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              Tabla
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors whitespace-nowrap shrink-0"
           >
             <FileSpreadsheet className="w-4 h-4 text-amber-400" />
             Exportar a Excel (.xlsx)
@@ -565,174 +639,243 @@ export const AsesoriasList: React.FC<AsesoriasListProps> = ({
         </div>
       </section>
 
-      {/* Main Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                <th className="px-4 py-3">Folio</th>
-                <th className="px-4 py-3">Alumno</th>
-                <th className="px-4 py-3">Materia</th>
-                <th className="px-4 py-3">Docente Asesor</th>
-                <th className="px-4 py-3">Fecha y Horario</th>
-                <th className="px-4 py-3">Espacio</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {displayList.length === 0 ? (
+      {/* Main View: Cards Grid or Table */}
+      {viewMode === 'cards' ? (
+        displayList.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs px-6 py-12 text-center text-xs text-slate-500 dark:text-slate-400">
+            <p>No se encontraron asesorías registradas con los filtros seleccionados.</p>
+            {hasAnyActiveFilter && (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Restablecer filtros
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {displayList.map(item => {
+              const canEditBasic =
+                isAdminOrDir ||
+                (currentRole === 'alumno' &&
+                  item.alumnoId === currentUser?.uid &&
+                  (item.estado === 'pendiente' || item.estado === 'en_revision' || item.estado === 'rechazada'));
+              const canReprogram =
+                isAdminOrDir &&
+                !!onOpenAssignModal &&
+                (item.estado === 'aprobada' || item.estado === 'asignada' || item.estado === 'confirmada' || item.estado === 'en_proceso');
+              const canDelete =
+                isAdminOrDir ||
+                (currentRole === 'alumno' &&
+                  item.alumnoId === currentUser?.uid &&
+                  (item.estado === 'pendiente' || item.estado === 'rechazada' || item.estado === 'cancelada'));
+              const canFollowUp =
+                canRegisterSeguimiento(currentRole) &&
+                (item.estado === 'confirmada' || item.estado === 'en_proceso' || item.estado === 'realizada');
+              const canClose = isAdminOrDir && item.estado === 'realizada';
+
+              return (
+                <AsesoriaCard
+                  key={item.id}
+                  item={item}
+                  simplified={isSimplified}
+                  onSelect={onSelectAdvisory}
+                  onExportPDF={(a) => SIAADataService.exportFichaPDF(a)}
+                  onEdit={onOpenEditModal}
+                  onReprogram={onOpenAssignModal}
+                  onSeguimiento={onOpenSeguimiento}
+                  onCloseAdvisory={(id) => handleStatusChange(id, 'cerrada')}
+                  onDelete={(a) => setConfirmDeleteItem(a)}
+                  canEdit={Boolean(canEditBasic && onOpenEditModal)}
+                  canReprogram={Boolean(canReprogram)}
+                  canSeguimiento={canFollowUp}
+                  canClose={canClose}
+                  canDelete={canDelete}
+                />
+              );
+            })}
+          </div>
+        )
+      ) : (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
-                    <p>No se encontraron asesorías registradas con los filtros seleccionados.</p>
-                    {hasAnyActiveFilter && (
-                      <button
-                        type="button"
-                        onClick={resetAllFilters}
-                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Restablecer filtros
-                      </button>
-                    )}
-                  </td>
+                  {!isSimplified && <th className="px-4 py-3">Folio</th>}
+                  <th className="px-4 py-3">Alumno</th>
+                  <th className="px-4 py-3">Materia</th>
+                  <th className="px-4 py-3">Docente Asesor</th>
+                  <th className="px-4 py-3">Fecha y Horario</th>
+                  {!isSimplified && <th className="px-4 py-3">Espacio</th>}
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
-              ) : (
-                displayList.map(item => {
-                  const canEditBasic =
-                    isAdminOrDir ||
-                    (currentRole === 'alumno' &&
-                      item.alumnoId === currentUser?.uid &&
-                      (item.estado === 'pendiente' || item.estado === 'en_revision' || item.estado === 'rechazada'));
-                  const canReprogram =
-                    isAdminOrDir &&
-                    onOpenAssignModal &&
-                    (item.estado === 'aprobada' || item.estado === 'asignada' || item.estado === 'confirmada' || item.estado === 'en_proceso');
-                  const canDelete =
-                    isAdminOrDir ||
-                    (currentRole === 'alumno' &&
-                      item.alumnoId === currentUser?.uid &&
-                      (item.estado === 'pendiente' || item.estado === 'rechazada' || item.estado === 'cancelada'));
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {displayList.length === 0 ? (
+                  <tr>
+                    <td colSpan={isSimplified ? 6 : 8} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
+                      <p>No se encontraron asesorías registradas con los filtros seleccionados.</p>
+                      {hasAnyActiveFilter && (
+                        <button
+                          type="button"
+                          onClick={resetAllFilters}
+                          className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Restablecer filtros
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  displayList.map(item => {
+                    const canEditBasic =
+                      isAdminOrDir ||
+                      (currentRole === 'alumno' &&
+                        item.alumnoId === currentUser?.uid &&
+                        (item.estado === 'pendiente' || item.estado === 'en_revision' || item.estado === 'rechazada'));
+                    const canReprogram =
+                      isAdminOrDir &&
+                      onOpenAssignModal &&
+                      (item.estado === 'aprobada' || item.estado === 'asignada' || item.estado === 'confirmada' || item.estado === 'en_proceso');
+                    const canDelete =
+                      isAdminOrDir ||
+                      (currentRole === 'alumno' &&
+                        item.alumnoId === currentUser?.uid &&
+                        (item.estado === 'pendiente' || item.estado === 'rechazada' || item.estado === 'cancelada'));
 
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="px-4 py-3.5 font-mono font-bold text-emerald-950 dark:text-emerald-300">
-                        {item.folio}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <p className="font-semibold text-slate-900 dark:text-slate-100">{item.alumnoNombre}</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{item.matricula}</p>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{item.materiaNombre}</p>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.materiaCodigo}</p>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{item.docenteAsignadoNombre || 'Sin asignar'}</p>
-                      </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <p className="font-semibold text-slate-700 dark:text-slate-200">{item.fechaProgramada || 'Por agendar'}</p>
-                        {item.horaInicio && (
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.horaInicio} - {item.horaTermino} hrs</p>
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        {!isSimplified && (
+                          <td className="px-4 py-3.5 font-mono font-bold text-emerald-950 dark:text-emerald-300">
+                            {item.folio}
+                          </td>
                         )}
-                      </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <p className="text-slate-700 dark:text-slate-200 font-medium">{item.aulaNombre || 'Aula asignada'}</p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{item.modalidad}</p>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <StatusBadge estado={item.estado} />
-                      </td>
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onSelectAdvisory(item.id)}
-                            className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-                            title="Ver Ficha Completa"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => SIAADataService.exportFichaPDF(item)}
-                            className="p-1.5 text-emerald-800 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-md transition-colors"
-                            title="Descargar Ficha en PDF"
-                          >
-                            <FileDown className="w-4 h-4" />
-                          </button>
-
-                          {canEditBasic && onOpenEditModal && (
+                        <td className="px-4 py-3.5">
+                          <p className="font-semibold text-slate-900 dark:text-slate-100">{item.alumnoNombre}</p>
+                          {!isSimplified && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{item.matricula}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <p className="font-medium text-slate-800 dark:text-slate-200">{item.materiaNombre}</p>
+                          {!isSimplified && (
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.materiaCodigo}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <p className="font-medium text-slate-800 dark:text-slate-200">{item.docenteAsignadoNombre || 'Sin asignar'}</p>
+                        </td>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <p className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{item.fechaProgramada || 'Por agendar'}</p>
+                          {item.horaInicio && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{item.horaInicio} - {item.horaTermino} hrs</p>
+                          )}
+                        </td>
+                        {!isSimplified && (
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <p className="text-slate-700 dark:text-slate-200 font-medium">{item.aulaNombre || 'Aula asignada'}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">{item.modalidad}</p>
+                          </td>
+                        )}
+                        <td className="px-4 py-3.5">
+                          <StatusBadge estado={item.estado} />
+                        </td>
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
-                              onClick={() => onOpenEditModal(item)}
+                              onClick={() => onSelectAdvisory(item.id)}
                               className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-                              title="Modificar datos de asesoría"
+                              title="Ver Ficha Completa"
                             >
-                              <Edit2 className="w-4 h-4" />
+                              <Eye className="w-4 h-4" />
                             </button>
-                          )}
 
-                          {canReprogram && (
                             <button
                               type="button"
-                              onClick={() => onOpenAssignModal(item)}
-                              className="p-1.5 text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-md transition-colors"
-                              title="Modificar docente, horario o aula"
+                              onClick={() => SIAADataService.exportFichaPDF(item)}
+                              className="p-1.5 text-emerald-800 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-md transition-colors"
+                              title="Descargar Ficha en PDF"
                             >
-                              <Calendar className="w-4 h-4" />
+                              <FileDown className="w-4 h-4" />
                             </button>
-                          )}
 
-                          {/* Seguimiento trigger for teaching roles or admin */}
-                          {canRegisterSeguimiento(currentRole) &&
-                            (item.estado === 'confirmada' || item.estado === 'en_proceso' || item.estado === 'realizada') && (
+                            {canEditBasic && onOpenEditModal && (
                               <button
                                 type="button"
-                                onClick={() => onOpenSeguimiento(item)}
-                                className="px-2 py-1 bg-amber-500 text-emerald-950 font-bold rounded hover:bg-amber-400 flex items-center gap-1 shadow-2xs text-[11px]"
-                                title="Registrar o Editar Seguimiento"
+                                onClick={() => onOpenEditModal(item)}
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                                title="Modificar datos de asesoría"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                {item.seguimiento ? 'Editar Seg.' : 'Seguimiento'}
+                                <Edit2 className="w-4 h-4" />
                               </button>
                             )}
 
-                          {/* Direct status closing for Director or Admin */}
-                          {isAdminOrDir &&
-                            item.estado === 'realizada' && (
+                            {canReprogram && (
                               <button
                                 type="button"
-                                onClick={() => handleStatusChange(item.id, 'cerrada')}
-                                className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-semibold rounded hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-[11px]"
-                                title="Cerrar Asesoría en Sistema"
+                                onClick={() => onOpenAssignModal(item)}
+                                className="p-1.5 text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-md transition-colors"
+                                title="Modificar docente, horario o aula"
                               >
-                                Cerrar
+                                <Calendar className="w-4 h-4" />
                               </button>
                             )}
 
-                          {canDelete && (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDeleteItem(item)}
-                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-md transition-colors"
-                              title="Eliminar registro de asesoría"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                            {/* Seguimiento trigger for teaching roles or admin */}
+                            {canRegisterSeguimiento(currentRole) &&
+                              (item.estado === 'confirmada' || item.estado === 'en_proceso' || item.estado === 'realizada') && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenSeguimiento(item)}
+                                  className="px-2 py-1 bg-amber-500 text-emerald-950 font-bold rounded hover:bg-amber-400 flex items-center gap-1 shadow-2xs text-[11px]"
+                                  title="Registrar o Editar Seguimiento"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  {item.seguimiento ? 'Editar Seg.' : 'Seguimiento'}
+                                </button>
+                              )}
+
+                            {/* Direct status closing for Director or Admin */}
+                            {isAdminOrDir &&
+                              item.estado === 'realizada' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(item.id, 'cerrada')}
+                                  className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-semibold rounded hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-[11px]"
+                                  title="Cerrar Asesoría en Sistema"
+                                >
+                                  Cerrar
+                                </button>
+                              )}
+
+                            {canDelete && (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteItem(item)}
+                                className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-md transition-colors"
+                                title="Eliminar registro de asesoría"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       <ConfirmDialog
         isOpen={!!confirmDeleteItem}

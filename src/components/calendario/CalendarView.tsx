@@ -10,8 +10,11 @@ import {
   Clock,
   User,
   DoorOpen,
-  Filter
+  Filter,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
+import { useSimplifiedAdvisoryMode } from '../../hooks/useSimplifiedAdvisoryMode';
 import { isTeachingRole, getUserCarreraIds, userHasCarrera, userMatchesCareerScope } from '../../utils/roles';
 
 interface CalendarViewProps {
@@ -33,6 +36,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
   const [filterDocente, setFilterDocente] = useState<string>('all');
   const [filterAula, setFilterAula] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'month' | 'agenda'>('month');
+  const { isSimplified, toggleSimplified } = useSimplifiedAdvisoryMode();
 
   // Role filtering
   let displayAsesorias = asesorias.filter(a => a.fechaProgramada);
@@ -217,6 +221,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
             <option key={a.id} value={a.id}>{a.nombre} ({a.edificio})</option>
           ))}
         </select>
+
+        {viewMode === 'agenda' && (
+          <button
+            type="button"
+            onClick={toggleSimplified}
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0"
+          >
+            {isSimplified ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+            {isSimplified ? 'Vista detallada' : 'Vista simplificada'}
+          </button>
+        )}
       </div>
 
       {/* View Mode: Month Grid */}
@@ -301,23 +316,30 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectAdvisory }) 
                     </div>
 
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-emerald-950 dark:text-emerald-300">{item.folio}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!isSimplified && (
+                          <span className="font-mono font-bold text-emerald-950 dark:text-emerald-300">{item.folio}</span>
+                        )}
                         <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{item.materiaNombre}</span>
                         <StatusBadge estado={item.estado} />
                       </div>
                       <p className="text-slate-600 dark:text-slate-300 mt-1">
-                        Alumno: <span className="font-semibold text-slate-800 dark:text-slate-100">{item.alumnoNombre}</span> ({item.matricula}) • Docente: <span className="font-semibold text-slate-800 dark:text-slate-100">{item.docenteAsignadoNombre || 'Por asignar'}</span>
+                        Alumno: <span className="font-semibold text-slate-800 dark:text-slate-100">{item.alumnoNombre}</span>
+                        {!isSimplified && ` (${item.matricula})`}
+                        {' • '}
+                        Docente: <span className="font-semibold text-slate-800 dark:text-slate-100">{item.docenteAsignadoNombre || 'Por asignar'}</span>
                       </p>
-                      <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 mt-1">
-                        <span className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-4 text-slate-500 dark:text-slate-400 mt-1">
+                        <span className="flex items-center gap-1 tabular-nums">
                           <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                           {item.horaInicio} - {item.horaTermino} hrs
                         </span>
-                        <span className="flex items-center gap-1">
-                          <DoorOpen className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                          {item.aulaNombre} ({item.modalidad})
-                        </span>
+                        {!isSimplified && (
+                          <span className="flex items-center gap-1">
+                            <DoorOpen className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                            {item.aulaNombre} ({item.modalidad})
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
